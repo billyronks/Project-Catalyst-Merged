@@ -1,0 +1,71 @@
+{{- if .Values.rtpengine.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "voice-stack.fullname" . }}-rtpengine
+  labels:
+    {{- include "voice-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rtp
+spec:
+  selector:
+    matchLabels:
+      {{- include "voice-stack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: rtp
+  template:
+    metadata:
+      labels:
+        {{- include "voice-stack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: rtp
+    spec:
+      hostNetwork: {{ .Values.rtpengine.hostNetwork }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: rtpengine
+          image: "{{ .Values.rtpengine.image.repository }}:{{ .Values.rtpengine.image.tag }}"
+          imagePullPolicy: {{ .Values.rtpengine.image.pullPolicy }}
+          args:
+            - --interface={{ .Values.rtpengine.config.interface }}
+            - --listen-ng={{ .Values.rtpengine.config.listenNg }}
+            - --port-min={{ .Values.rtpengine.config.portMin }}
+            - --port-max={{ .Values.rtpengine.config.portMax }}
+            - --log-level={{ .Values.rtpengine.config.logLevel }}
+            - --foreground
+          ports:
+            - name: ng-control
+              containerPort: 22222
+              protocol: UDP
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+                - NET_RAW
+          resources:
+            {{- toYaml .Values.rtpengine.resources | nindent 12 }}
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "voice-stack.fullname" . }}-rtpengine
+  labels:
+    {{- include "voice-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rtp
+spec:
+  type: {{ .Values.rtpengine.service.type }}
+  ports:
+    {{- range .Values.rtpengine.service.ports }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .name }}
+      protocol: {{ .protocol }}
+    {{- end }}
+  selector:
+    {{- include "voice-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: rtp
+{{- end }}

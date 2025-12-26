@@ -1,0 +1,67 @@
+# VIP Pool for LoadBalancer services
+# Allocates IPs from PoP subnet for all microservices
+
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: {{ .Values.pop.id }}-vip-pool
+  labels:
+    pop: {{ .Values.pop.id }}
+spec:
+  cidrs:
+    # API Gateway - offset 3
+    - cidr: "{{ .Values.pop.vipBase }}.3/32"
+    # SMSC Primary - offset 4
+    - cidr: "{{ .Values.pop.vipBase }}.4/32"
+    # SMSC Secondary - offset 5
+    - cidr: "{{ .Values.pop.vipBase }}.5/32"
+    # USSD Gateway Primary - offset 6
+    - cidr: "{{ .Values.pop.vipBase }}.6/32"
+    # USSD Gateway Secondary - offset 7
+    - cidr: "{{ .Values.pop.vipBase }}.7/32"
+    # Messaging Hub - offset 8
+    - cidr: "{{ .Values.pop.vipBase }}.8/32"
+    # Messaging WebSocket - offset 9
+    - cidr: "{{ .Values.pop.vipBase }}.9/32"
+    # User Service - offset 10
+    - cidr: "{{ .Values.pop.vipBase }}.10/32"
+    # Billing Service - offset 11
+    - cidr: "{{ .Values.pop.vipBase }}.11/32"
+    # Campaign Service - offset 12
+    - cidr: "{{ .Values.pop.vipBase }}.12/32"
+    # Analytics Service - offset 13
+    - cidr: "{{ .Values.pop.vipBase }}.13/32"
+    # AI Service - offset 14
+    - cidr: "{{ .Values.pop.vipBase }}.14/32"
+    # Payment Service - offset 15
+    - cidr: "{{ .Values.pop.vipBase }}.15/32"
+    # VAS Service - offset 16
+    - cidr: "{{ .Values.pop.vipBase }}.16/32"
+    # Reseller Service - offset 17
+    - cidr: "{{ .Values.pop.vipBase }}.17/32"
+    # Template Service - offset 18
+    - cidr: "{{ .Values.pop.vipBase }}.18/32"
+    # Routing Service - offset 19
+    - cidr: "{{ .Values.pop.vipBase }}.19/32"
+    # DLR Service - offset 20
+    - cidr: "{{ .Values.pop.vipBase }}.20/32"
+    # Scheduler Service - offset 21
+    - cidr: "{{ .Values.pop.vipBase }}.21/32"
+    # Notification Service - offset 22
+    - cidr: "{{ .Values.pop.vipBase }}.22/32"
+    # Landing Service - offset 23
+    - cidr: "{{ .Values.pop.vipBase }}.23/32"
+    # Admin Dashboard - offset 24
+    - cidr: "{{ .Values.pop.vipBase }}.24/32"
+    # PoP Controller - offset 25
+    - cidr: "{{ .Values.pop.vipBase }}.25/32"
+    # LB Health Monitor - offset 26
+    - cidr: "{{ .Values.pop.vipBase }}.26/32"
+    # Reserved range - offsets 27-62
+    {{- range $i := until 36 }}
+    - cidr: "{{ $.Values.pop.vipBase }}.{{ add 27 $i }}/32"
+    {{- end }}
+    
+  serviceSelector:
+    matchLabels:
+      io.cilium/lb-ipam-layer2: "true"

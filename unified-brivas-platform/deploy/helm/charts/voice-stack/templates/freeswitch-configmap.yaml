@@ -1,0 +1,96 @@
+{{- if .Values.freeswitch.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "voice-stack.fullname" . }}-freeswitch-dialplan
+  labels:
+    {{- include "voice-stack.labels" . | nindent 4 }}
+data:
+  brivas.xml: |
+    <?xml version="1.0" encoding="utf-8"?>
+    <include>
+      <context name="{{ .Values.freeswitch.dialplan.context }}">
+        
+        <!-- IVR Entry Point -->
+        <extension name="ivr-main">
+          <condition field="destination_number" expression="^ivr-(.*)$">
+            <action application="answer"/>
+            <action application="set" data="ivr_flow_id=$1"/>
+            <action application="curl" data="http://{{ include "voice-stack.fullname" . }}-voice-ivr:8080/internal/ivr/start?call_id=$${uuid}&amp;flow_id=$1"/>
+            <action application="lua" data="ivr/main.lua $${ivr_flow_id}"/>
+          </condition>
+        </extension>
+        
+        <!-- Flash Call Handler -->
+        <extension name="flash-call">
+          <condition field="destination_number" expression="^flash-(.*)$">
+            <action application="ring_ready"/>
+            <action application="sleep" data="500"/>
+            <action application="curl" data="http://{{ include "voice-stack.fullname" . }}-voice-ivr:8080/internal/flash/complete?call_id=$${uuid}&amp;destination=$1"/>
+            <action application="hangup" data="ORIGINATOR_CANCEL"/>
+          </condition>
+        </extension>
+        
+        <!-- Bulk Voice Message Playback -->
+        <extension name="bulk-voice">
+          <condition field="destination_number" expression="^bulk-(.*)$">
+            <action application="answer"/>
+            <action application="set" data="campaign_id=$1"/>
+            <action application="curl" data="http://{{ include "voice-stack.fullname" . }}-voice-ivr:8080/internal/campaign/$${campaign_id}/audio"/>
+            <action application="set" data="audio_url=$${curl_response_data}"/>
+            <action application="playback" data="$${audio_url}"/>
+            <action application="curl" data="http://{{ include "voice-stack.fullname" . }}-voice-ivr:8080/internal/campaign/$${campaign_id}/complete?call_id=$${uuid}"/>
+            <action application="hangup"/>
+          </condition>
+        </extension>
+        
+        <!-- Agent Bridge for Predictive Dialer -->
+        <extension name="agent-bridge">
+          <condition field="destination_number" expression="^agent-(.*)$">
+            <action application="curl" data="http://{{ include "voice-stack.fullname" . }}-voice-ivr:8080/internal/dialer/bridge?call_id=$${uuid}&amp;agent=$1"/>
+            <action application="bridge" data="user/$1"/>
+          </condition>
+        </extension>
+        
+        <!-- Conference -->
+        <extension name="conference">
+          <condition field="destination_number" expression="^conf-(.*)$">
+            <action application="answer"/>
+            <action application="conference" data="$1@{{ .Values.freeswitch.dialplan.context }}"/>
+          </condition>
+        </extension>
+        
+        <!-- TTS Playback -->
+        <extension name="tts-play">
+          <condition field="destination_number" expression="^tts$">
+            <action application="answer"/>
+            <action application="set" data="tts_engine={{ .Values.freeswitch.tts.engine }}"/>
+            <action application="set" data="tts_voice={{ .Values.freeswitch.tts.voice }}"/>
+            <action application="speak" data="${tts_engine}|${tts_voice}|${tts_text}"/>
+            <action application="hangup"/>
+          </condition>
+        </extension>
+        
+        <!-- Outbound via OpenSIPS -->
+        <extension name="outbound">
+          <condition field="destination_number" expression="^(\+?[0-9]+)$">
+            <action application="bridge" data="sofia/external/$1@{{ include "voice-stack.fullname" . }}-opensips:5080"/>
+          </condition>
+        </extension>
+        
+      </context>
+    </include>
+{{- end }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "voice-stack.fullname" . }}-secrets
+  labels:
+    {{- include "voice-stack.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  freeswitch-password: {{ .Values.freeswitch.eventSocket.password | quote }}
+  {{- if .Values.kamailio.config.topohMaskKey }}
+  kamailio-topoh-key: {{ .Values.kamailio.config.topohMaskKey | quote }}
+  {{- end }}

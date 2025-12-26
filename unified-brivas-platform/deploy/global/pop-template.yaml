@@ -1,0 +1,259 @@
+# PoP Infrastructure Template
+# Base configuration applied to every Point of Presence
+
+apiVersion: brivas.io/v1
+kind: PopTemplate
+metadata:
+  name: pop-infrastructure-base
+
+spec:
+  # ============================================================================
+  # KUBERNETES CONFIGURATION
+  # ============================================================================
+  kubernetes:
+    tier1:
+      distribution: k8s
+      version: "1.29+"
+      cni: cilium
+      features:
+        - pod-security-admission
+        - resource-quotas
+        - priority-classes
+        
+    tier2:
+      distribution: k3s
+      version: "1.29+"
+      cni: cilium
+      features:
+        - pod-security-admission
+
+  # ============================================================================
+  # CONTROL PLANE HA
+  # ============================================================================
+  controlPlane:
+    kubeVip:
+      enabled: true
+      vipOffset: 2  # subnet.2 for kube-api
+      interface: "{{ .pop.primaryInterface }}"
+      loadbalancer:
+        algorithm: round_robin
+        
+  # ============================================================================
+  # DATA PLANE - CILIUM eBPF
+  # ============================================================================
+  dataPlane:
+    cilium:
+      version: "1.15+"
+      
+      # Critical: Replace kube-proxy entirely
+      kubeProxyReplacement: strict
+      
+      # eBPF optimizations
+      bpf:
+        masquerade: true
+        clockProbe: true
+        preallocateMaps: true
+        tproxy: true
+        
+        # High-capacity map sizes
+        lbMapMax: 512000
+        policyMapMax: 65536
+        ctTcpMax: 2097152
+        ctAnyMax: 2097152
+        natMax: 2097152
+        neighMax: 1048576
+        
+      # XDP Acceleration + DSR
+      loadBalancer:
+        mode: dsr
+        dsrDispatch: opt
+        acceleration: native
+        algorithm: maglev
+        maglev:
+          tableSize: 65521
+          
+      # L2 announcements for VIPs
+      l2announcements:
+        enabled: true
+        
+      # Socket-level LB (bypass netfilter)
+      socketLB:
+        enabled: true
+        
+      # BBR congestion control
+      bandwidthManager:
+        enabled: true
+        bbr: true
+
+  # ============================================================================
+  # LUMADB STORAGE
+  # ============================================================================
+  storage:
+    lumadb:
+      mode: replicated
+      replicationFactor: 3
+      syncMode: async-with-local-commit
+      
+      # Storage classes
+      storageClass:
+        tier1: ssd-nvme
+        tier2: ssd
+        
+      # Backup configuration
+      backup:
+        enabled: true
+        schedule: "0 */6 * * *"
+        retention: 30
+
+  # ============================================================================
+  # VIP ALLOCATION SCHEME
+  # ============================================================================
+  networking:
+    vipPools:
+      - name: control-plane
+        offset: 2
+        count: 1
+        description: Kubernetes API VIP
+        
+      - name: api-gateway
+        offset: 3
+        count: 1
+        description: Unified API entry point
+        
+      - name: smsc-primary
+        offset: 4
+        count: 1
+        description: SMSC primary VIP
+        
+      - name: smsc-secondary
+        offset: 5
+        count: 1
+        description: SMSC secondary VIP
+        
+      - name: ussd-gateway-primary
+        offset: 6
+        count: 1
+        description: USSD Gateway primary
+        
+      - name: ussd-gateway-secondary
+        offset: 7
+        count: 1
+        description: USSD Gateway secondary
+        
+      - name: messaging-hub
+        offset: 8
+        count: 1
+        description: Unified Messaging Hub
+        
+      - name: messaging-websocket
+        offset: 9
+        count: 1
+        description: WebSocket connections
+        
+      - name: user-service
+        offset: 10
+        count: 1
+        
+      - name: billing-service
+        offset: 11
+        count: 1
+        
+      - name: campaign-service
+        offset: 12
+        count: 1
+        
+      - name: analytics-service
+        offset: 13
+        count: 1
+        
+      - name: ai-service
+        offset: 14
+        count: 1
+        
+      - name: payment-service
+        offset: 15
+        count: 1
+        
+      - name: vas-service
+        offset: 16
+        count: 1
+        
+      - name: reseller-service
+        offset: 17
+        count: 1
+        
+      - name: template-service
+        offset: 18
+        count: 1
+        
+      - name: routing-service
+        offset: 19
+        count: 1
+        
+      - name: dlr-service
+        offset: 20
+        count: 1
+        
+      - name: scheduler-service
+        offset: 21
+        count: 1
+        
+      - name: notification-service
+        offset: 22
+        count: 1
+        
+      - name: landing-service
+        offset: 23
+        count: 1
+        
+      - name: admin-dashboard
+        offset: 24
+        count: 1
+        
+      - name: pop-controller
+        offset: 25
+        count: 1
+        
+      - name: lb-health-monitor
+        offset: 26
+        count: 1
+        
+      - name: reserved
+        offset: 27
+        count: 35
+        description: Reserved for future services
+
+  # ============================================================================
+  # OBSERVABILITY
+  # ============================================================================
+  observability:
+    # All metrics stored in LumaDB
+    metrics:
+      storage: lumadb
+      retention: 90d
+      
+    # Hubble for network visibility
+    hubble:
+      enabled: true
+      relay: true
+      ui: true
+      
+    # Tracing
+    tracing:
+      enabled: true
+      storage: lumadb
+      samplingRate: 0.1
+      
+  # ============================================================================
+  # SECURITY
+  # ============================================================================
+  security:
+    mtls:
+      enabled: true
+      autoRotate: true
+      
+    networkPolicies:
+      defaultDeny: true
+      
+    podSecurity:
+      enforce: restricted

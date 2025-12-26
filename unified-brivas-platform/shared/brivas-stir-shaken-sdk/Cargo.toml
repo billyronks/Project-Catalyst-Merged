@@ -1,0 +1,28 @@
+[package]
+name = "brivas-stir-shaken-sdk"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "STIR/SHAKEN SDK for Brivas Platform"
+
+[dependencies]
+# gRPC client
+tonic = { version = "0.11", features = ["tls", "tls-roots"] }
+prost = { workspace = true }
+prost-types = "0.12"
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Async
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+[build-dependencies]
+tonic-build = { workspace = true }

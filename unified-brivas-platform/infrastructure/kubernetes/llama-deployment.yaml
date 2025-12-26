@@ -1,0 +1,236 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: brivas-llm
+  labels:
+    app: brivas
+    component: llm
+---
+# Persistent Volume for model storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llama-models-pvc
+  namespace: brivas-llm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: fast-ssd
+---
+# ConfigMap for vLLM configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llama-config
+  namespace: brivas-llm
+data:
+  MODEL_NAME: "meta-llama/Llama-3.1-70B-Instruct"
+  MAX_MODEL_LEN: "8192"
+  TENSOR_PARALLEL_SIZE: "4"
+  GPU_MEMORY_UTILIZATION: "0.9"
+  MAX_NUM_SEQS: "256"
+  ENABLE_CHUNKED_PREFILL: "true"
+  TRUST_REMOTE_CODE: "true"
+---
+# Secret for HuggingFace token
+apiVersion: v1
+kind: Secret
+metadata:
+  name: llama-secrets
+  namespace: brivas-llm
+type: Opaque
+stringData:
+  HF_TOKEN: "${HF_TOKEN}"
+---
+# vLLM Deployment for Llama inference
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-vllm
+  namespace: brivas-llm
+  labels:
+    app: llama
+    component: inference
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llama
+  template:
+    metadata:
+      labels:
+        app: llama
+        component: inference
+    spec:
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          args:
+            - --model
+            - $(MODEL_NAME)
+            - --max-model-len
+            - $(MAX_MODEL_LEN)
+            - --tensor-parallel-size
+            - $(TENSOR_PARALLEL_SIZE)
+            - --gpu-memory-utilization
+            - $(GPU_MEMORY_UTILIZATION)
+            - --max-num-seqs
+            - $(MAX_NUM_SEQS)
+            - --enable-chunked-prefill
+            - --trust-remote-code
+            - --served-model-name
+            - llama-3.1-70b
+          envFrom:
+            - configMapRef:
+                name: llama-config
+            - secretRef:
+                name: llama-secrets
+          env:
+            - name: HUGGING_FACE_HUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: llama-secrets
+                  key: HF_TOKEN
+          ports:
+            - containerPort: 8000
+              name: http
+          resources:
+            requests:
+              memory: "80Gi"
+              cpu: "16"
+              nvidia.com/gpu: "4"
+            limits:
+              memory: "160Gi"
+              cpu: "32"
+              nvidia.com/gpu: "4"
+          volumeMounts:
+            - name: models
+              mountPath: /root/.cache/huggingface
+            - name: shm
+              mountPath: /dev/shm
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 120
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 180
+            periodSeconds: 30
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: llama-models-pvc
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Gi
+      nodeSelector:
+        nvidia.com/gpu.product: "NVIDIA-A100-SXM4-80GB"
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+---
+# Service for vLLM
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama-service
+  namespace: brivas-llm
+  labels:
+    app: llama
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    app: llama
+---
+# HorizontalPodAutoscaler for scaling based on GPU utilization
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: llama-hpa
+  namespace: brivas-llm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: llama-vllm
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Pods
+      pods:
+        metric:
+          name: vllm_num_requests_running
+        target:
+          type: AverageValue
+          averageValue: "200"
+---
+# NetworkPolicy for secure access
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: llama-network-policy
+  namespace: brivas-llm
+spec:
+  podSelector:
+    matchLabels:
+      app: llama
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app: brivas
+        - podSelector:
+            matchLabels:
+              component: ai-service
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 192.168.0.0/16
+              - 172.16.0.0/12
+      ports:
+        - protocol: TCP
+          port: 443
+---
+# ServiceMonitor for Prometheus metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: llama-monitor
+  namespace: brivas-llm
+spec:
+  selector:
+    matchLabels:
+      app: llama
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s

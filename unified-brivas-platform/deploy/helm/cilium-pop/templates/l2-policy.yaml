@@ -1,0 +1,64 @@
+# L2 Announcement Policy
+# Enables Cilium to announce VIPs via ARP/NDP
+
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: {{ .Values.pop.id }}-l2-announcement
+  labels:
+    pop: {{ .Values.pop.id }}
+spec:
+  # Select all services with L2 annotation
+  serviceSelector:
+    matchExpressions:
+      - key: io.cilium/l2-announcement
+        operator: Exists
+        
+  # Only announce from worker nodes
+  nodeSelector:
+    matchExpressions:
+      - key: node-role.kubernetes.io/control-plane
+        operator: DoesNotExist
+        
+  # Network interfaces for announcement
+  interfaces:
+    - {{ .Values.pop.primaryInterface | default "eth0" }}
+    
+  # Announce both external and LoadBalancer IPs
+  externalIPs: true
+  loadBalancerIPs: true
+
+---
+# BGP Configuration for larger deployments (optional)
+{{- if .Values.pop.bgp.enabled }}
+apiVersion: cilium.io/v2alpha1
+kind: CiliumBGPPeeringPolicy
+metadata:
+  name: {{ .Values.pop.id }}-bgp-policy
+spec:
+  nodeSelector:
+    matchLabels:
+      bgp: enabled
+      
+  virtualRouters:
+    - localASN: {{ .Values.pop.bgp.localAsn }}
+      exportPodCIDR: false
+      
+      neighbors:
+        {{- range .Values.pop.bgp.neighbors }}
+        - peerAddress: {{ .address }}
+          peerASN: {{ .asn }}
+          eBGPMultihopTTL: {{ .ttl | default 1 }}
+          connectRetryTimeSeconds: 30
+          holdTimeSeconds: 90
+          keepAliveTimeSeconds: 30
+          gracefulRestart:
+            enabled: true
+            restartTimeSeconds: 120
+        {{- end }}
+        
+      serviceSelector:
+        matchExpressions:
+          - key: io.cilium/bgp-announce
+            operator: Exists
+{{- end }}

@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-service
+  namespace: brivas
+  labels:
+    app: billing-service
+    tier: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: billing-service
+  template:
+    metadata:
+      labels:
+        app: billing-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+    spec:
+      serviceAccountName: brivas-service
+      containers:
+        - name: billing-service
+          image: brivas/billing-service:latest
+          ports:
+            - name: grpc
+              containerPort: 50054
+            - name: http
+              containerPort: 8080
+            - name: metrics
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: brivas-common-config
+            - secretRef:
+                name: lumadb-credentials
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-service
+  namespace: brivas
+spec:
+  selector:
+    app: billing-service
+  ports:
+    - name: grpc
+      port: 50054
+      targetPort: 50054
+    - name: http
+      port: 80
+      targetPort: 8080

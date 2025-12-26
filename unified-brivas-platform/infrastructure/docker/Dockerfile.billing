@@ -1,0 +1,40 @@
+# Billing Service Docker Image
+FROM rust:1.75-bookworm AS builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY Cargo.toml Cargo.lock ./
+COPY shared/ shared/
+COPY crates/ crates/
+COPY microservices/ microservices/
+
+RUN cargo build --release -p billing
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -r -s /bin/false brivas
+
+COPY --from=builder /app/target/release/billing /usr/local/bin/
+
+USER brivas
+
+ENV RUST_LOG=info
+ENV GRPC_PORT=50052
+ENV HTTP_PORT=8083
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget -q --spider http://localhost:8083/health || exit 1
+
+EXPOSE 50052 8083
+
+ENTRYPOINT ["/usr/local/bin/billing"]

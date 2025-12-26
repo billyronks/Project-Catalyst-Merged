@@ -1,0 +1,18 @@
+[package]
+name = "brivas-lumadb"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "brivas_lumadb"
+path = "src/lib.rs"
+
+[dependencies]
+tokio.workspace = true
+tokio-postgres.workspace = true
+deadpool-postgres.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+async-trait.workspace = true

@@ -1,0 +1,105 @@
+{{- if .Values.freeswitch.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "voice-stack.fullname" . }}-freeswitch
+  labels:
+    {{- include "voice-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: media
+spec:
+  replicas: {{ .Values.freeswitch.replicas }}
+  selector:
+    matchLabels:
+      {{- include "voice-stack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: media
+  template:
+    metadata:
+      labels:
+        {{- include "voice-stack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: media
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: freeswitch
+          image: "{{ .Values.freeswitch.image.repository }}:{{ .Values.freeswitch.image.tag }}"
+          imagePullPolicy: {{ .Values.freeswitch.image.pullPolicy }}
+          ports:
+            - name: sip
+              containerPort: 5070
+              protocol: UDP
+            - name: event-socket
+              containerPort: 8021
+              protocol: TCP
+          env:
+            - name: POP_ID
+              value: {{ .Values.pop.id | quote }}
+            - name: FS_PASSWORD
+              value: {{ .Values.freeswitch.eventSocket.password | quote }}
+            - name: MAX_SESSIONS
+              value: {{ .Values.freeswitch.config.maxSessions | quote }}
+          volumeMounts:
+            - name: dialplan
+              mountPath: /etc/freeswitch/dialplan
+            - name: recordings
+              mountPath: {{ .Values.freeswitch.recording.path }}
+          livenessProbe:
+            tcpSocket:
+              port: event-socket
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: event-socket
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.freeswitch.resources | nindent 12 }}
+      volumes:
+        - name: dialplan
+          configMap:
+            name: {{ include "voice-stack.fullname" . }}-freeswitch-dialplan
+        - name: recordings
+          persistentVolumeClaim:
+            claimName: {{ include "voice-stack.fullname" . }}-recordings
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "voice-stack.fullname" . }}-freeswitch
+  labels:
+    {{- include "voice-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: media
+spec:
+  type: {{ .Values.freeswitch.service.type }}
+  ports:
+    {{- range .Values.freeswitch.service.ports }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .name }}
+      protocol: {{ default "TCP" .protocol }}
+    {{- end }}
+  selector:
+    {{- include "voice-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: media
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "voice-stack.fullname" . }}-recordings
+  labels:
+    {{- include "voice-stack.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: {{ .Values.freeswitch.recording.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.freeswitch.recording.size }}
+{{- end }}

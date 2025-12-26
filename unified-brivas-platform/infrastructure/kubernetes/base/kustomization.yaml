@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: brivas
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - ussd-gateway.yaml
+  - smsc.yaml
+  - messaging-hub.yaml
+  - billing-service.yaml
+  - payment-service.yaml
+  - user-service.yaml
+  - api-gateway.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: unified-brivas-platform
+  app.kubernetes.io/managed-by: kustomize

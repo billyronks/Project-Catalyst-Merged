@@ -1,0 +1,28 @@
+# Janus WebSocket Transport Configuration
+
+general: {
+    events = true
+    json = "indented"
+    pingpong_trigger = 30
+    pingpong_timeout = 10
+}
+
+admin: {
+    admin_ws = true
+    admin_ws_port = 7188
+    admin_wss = true
+    admin_wss_port = 8989
+}
+
+cors: {
+    allow_origin = "*"
+}
+
+ws-0: {
+    ws = true
+    ws_port = 8188
+    ws_ip = "0.0.0.0"
+    wss = true
+    wss_port = 8989
+    wss_ip = "0.0.0.0"
+}

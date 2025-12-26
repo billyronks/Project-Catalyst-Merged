@@ -1,0 +1,209 @@
+# GeoDNS Configuration - 5 Tier-1 PoPs
+# Routes users to nearest healthy PoP
+
+apiVersion: brivas.io/v1
+kind: GlobalTrafficPolicy
+metadata:
+  name: brivas-global-routing
+  version: "2.0"
+  
+spec:
+  # ============================================================================
+  # DOMAIN CONFIGURATION
+  # ============================================================================
+  domain: api.brivas.io
+  
+  alternativeDomains:
+    - smpp.brivas.io
+    - ussd.brivas.io
+    - voice.brivas.io
+    - webhooks.brivas.io
+    
+  # ============================================================================
+  # HEALTH CHECK
+  # ============================================================================
+  healthCheck:
+    protocol: HTTPS
+    port: 443
+    path: /health
+    interval: 10s
+    timeout: 5s
+    unhealthyThreshold: 3
+    healthyThreshold: 2
+    expectedCodes: [200, 204]
+    
+  # ============================================================================
+  # GEO ROUTING RULES (5 PoPs)
+  # ============================================================================
+  geoRouting:
+    defaultPool: lagos-ng-1
+    
+    rules:
+      # AFRICA → Lagos
+      - name: africa
+        regions:
+          - NG  # Nigeria
+          - GH  # Ghana
+          - CI  # Ivory Coast
+          - SN  # Senegal
+          - ZA  # South Africa
+          - KE  # Kenya
+          - EG  # Egypt
+          - MA  # Morocco
+          - TZ  # Tanzania
+          - UG  # Uganda
+          - RW  # Rwanda
+          - ET  # Ethiopia
+          - CM  # Cameroon
+          - CD  # DRC
+          - AO  # Angola
+          - DZ  # Algeria
+          - TN  # Tunisia
+          - LY  # Libya
+        primaryPool: lagos-ng-1
+        fallbackPools: [london-uk-1, saopaulo-br-1]
+        
+      # EUROPE, MIDDLE EAST, NORTH AFRICA → London
+      - name: europe-mena
+        regions:
+          - GB  # UK
+          - DE  # Germany
+          - FR  # France
+          - ES  # Spain
+          - IT  # Italy
+          - NL  # Netherlands
+          - BE  # Belgium
+          - SE  # Sweden
+          - NO  # Norway
+          - PL  # Poland
+          - CH  # Switzerland
+          - AT  # Austria
+          - PT  # Portugal
+          - IE  # Ireland
+          - DK  # Denmark
+          - FI  # Finland
+          - AE  # UAE
+          - SA  # Saudi Arabia
+          - IL  # Israel
+          - TR  # Turkey
+          - PK  # Pakistan
+        primaryPool: london-uk-1
+        fallbackPools: [lagos-ng-1, ashburn-us-1]
+        
+      # NORTH AMERICA, CARIBBEAN, CENTRAL AMERICA → Ashburn
+      - name: americas-north
+        regions:
+          - US  # United States
+          - CA  # Canada
+          - MX  # Mexico
+          - JM  # Jamaica
+          - PR  # Puerto Rico
+          - BS  # Bahamas
+          - DO  # Dominican Republic
+          - HT  # Haiti
+          - CU  # Cuba
+          - GT  # Guatemala
+          - HN  # Honduras
+          - SV  # El Salvador
+          - NI  # Nicaragua
+          - CR  # Costa Rica
+          - PA  # Panama
+        primaryPool: ashburn-us-1
+        fallbackPools: [saopaulo-br-1, london-uk-1]
+        
+      # SOUTH AMERICA → São Paulo
+      - name: americas-south
+        regions:
+          - BR  # Brazil
+          - AR  # Argentina
+          - CL  # Chile
+          - CO  # Colombia
+          - PE  # Peru
+          - VE  # Venezuela
+          - EC  # Ecuador
+          - BO  # Bolivia
+          - PY  # Paraguay
+          - UY  # Uruguay
+        primaryPool: saopaulo-br-1
+        fallbackPools: [ashburn-us-1, london-uk-1]
+        
+      # ASIA-PACIFIC → Singapore
+      - name: apac
+        regions:
+          - SG  # Singapore
+          - MY  # Malaysia
+          - ID  # Indonesia
+          - TH  # Thailand
+          - VN  # Vietnam
+          - PH  # Philippines
+          - IN  # India
+          - AU  # Australia
+          - NZ  # New Zealand
+          - JP  # Japan
+          - KR  # South Korea
+          - HK  # Hong Kong
+          - TW  # Taiwan
+          - CN  # China
+          - BD  # Bangladesh
+          - LK  # Sri Lanka
+          - MM  # Myanmar
+        primaryPool: singapore-sg-1
+        fallbackPools: [london-uk-1, ashburn-us-1]
+
+  # ============================================================================
+  # POP POOLS (5 Tier-1 Only)
+  # ============================================================================
+  pools:
+    lagos-ng-1:
+      endpoints:
+        - address: 102.217.214.3
+          weight: 100
+      healthCheck: true
+          
+    london-uk-1:
+      endpoints:
+        - address: 185.230.50.3
+          weight: 100
+      healthCheck: true
+          
+    ashburn-us-1:
+      endpoints:
+        - address: 198.51.100.3
+          weight: 100
+      healthCheck: true
+          
+    saopaulo-br-1:
+      endpoints:
+        - address: 177.85.40.3
+          weight: 100
+      healthCheck: true
+          
+    singapore-sg-1:
+      endpoints:
+        - address: 103.200.60.3
+          weight: 100
+      healthCheck: true
+
+  # ============================================================================
+  # FAILOVER CONFIGURATION
+  # ============================================================================
+  failover:
+    mode: automatic
+    triggerCondition: unhealthy
+    waitTime: 30s
+    drainTimeout: 60s
+    
+    chains:
+      lagos-ng-1: [london-uk-1, saopaulo-br-1, ashburn-us-1, singapore-sg-1]
+      london-uk-1: [ashburn-us-1, lagos-ng-1, singapore-sg-1, saopaulo-br-1]
+      ashburn-us-1: [saopaulo-br-1, london-uk-1, singapore-sg-1, lagos-ng-1]
+      saopaulo-br-1: [ashburn-us-1, london-uk-1, lagos-ng-1, singapore-sg-1]
+      singapore-sg-1: [london-uk-1, ashburn-us-1, saopaulo-br-1, lagos-ng-1]
+    
+  # ============================================================================
+  # TTL SETTINGS
+  # ============================================================================
+  dns:
+    ttl: 60
+    minTtl: 30
+    maxTtl: 300

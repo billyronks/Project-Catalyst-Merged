@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FreeSWITCH Dialplan for Brivas Voice Platform
+  Handles IVR, Flash Calls, Bulk Voice, and Predictive Dialer
+-->
+<include>
+  <context name="brivas">
+    
+    <!-- ============================================================ -->
+    <!-- IVR Entry Point -->
+    <!-- ============================================================ -->
+    <extension name="ivr-main">
+      <condition field="destination_number" expression="^ivr-(.*)$">
+        <action application="answer"/>
+        <action application="set" data="ivr_flow_id=$1"/>
+        <action application="log" data="INFO Starting IVR flow: $1"/>
+        
+        <!-- Notify voice-ivr service of new session -->
+        <action application="curl" data="http://voice-ivr:8080/internal/ivr/start?call_id=${uuid}&flow_id=$1"/>
+        
+        <!-- Execute Lua IVR script -->
+        <action application="lua" data="ivr/main.lua ${ivr_flow_id}"/>
+      </condition>
+    </extension>
+    
+    <!-- ============================================================ -->
+    <!-- Flash Call Handler -->
+    <!-- ============================================================ -->
+    <extension name="flash-call">
+      <condition field="destination_number" expression="^flash-(.*)$">
+        <action application="set" data="flash_destination=$1"/>
+        <action application="log" data="INFO Flash call to: $1"/>
+        
+        <!-- Brief ring, no answer -->
+        <action application="ring_ready"/>
+        <action application="sleep" data="500"/>
+        
+        <!-- Notify completion -->
+        <action application="curl" data="http://voice-ivr:8080/internal/flash/complete?call_id=${uuid}&destination=$1"/>
+        
+        <action application="hangup" data="ORIGINATOR_CANCEL"/>
+      </condition>
+    </extension>
+    
+    <!-- ============================================================ -->
+    <!-- Bulk Voice Message Playback -->
+    <!-- ============================================================ -->
+    <extension name="bulk-voice">
+      <condition field="destination_number" expression="^bulk-(.*)$">
+        <action application="answer"/>
+        <action application="set" data="campaign_id=$1"/>
+        <action application="log" data="INFO Bulk voice campaign: $1"/>
+        
+        <!-- Get audio URL from voice-ivr service -->
+        <action application="curl" data="http://voice-ivr:8080/internal/campaign/${campaign_id}/audio"/>
+        <action application="set" data="audio_url=${curl_response_data}"/>
+        
+        <!-- Play audio -->
+        <action application="playback" data="${audio_url}"/>
+        
+        <!-- Report completion -->
+        <action application="curl" data="http://voice-ivr:8080/internal/campaign/${campaign_id}/complete?call_id=${uuid}"/>
+        
+        <action application="hangup"/>
+      </condition>
+    </extension>
+    
+    <!-- ============================================================ -->
+    <!-- Predictive Dialer - Agent Bridge -->
+    <!-- ============================================================ -->
+    <extension name="agent-bridge">
+      <condition field="destination_number" expression="^agent-(.*)$">
+        <action application="set" data="agent_extension=$1"/>
+        <action application="log" data="INFO Bridging to agent: $1"/>
+        
+        <!-- Notify dialer of bridge -->
+        <action application="curl" data="http://voice-ivr:8080/internal/dialer/bridge?call_id=${uuid}&agent=$1"/>
+        
+        <!-- Bridge to agent -->
+        <action application="bridge" data="user/$1"/>
+      </condition>
+    </extension>
+    
+    <!-- ============================================================ -->
+    <!-- TTS Playback -->
+    <!-- ============================================================ -->
+    <extension name="tts-play">
+      <condition field="destination_number" expression="^tts$">
+        <action application="answer"/>
+        
+        <!-- Get TTS text from channel variable -->
+        <action application="set" data="tts_engine=flite"/>
+        <action application="set" data="tts_voice=slt"/>
+        
+        <action application="speak" data="${tts_engine}|${tts_voice}|${tts_text}"/>
+        
+        <action application="hangup"/>
+      </condition>
+    </extension>
+    
+    <!-- ============================================================ -->
+    <!-- DTMF Collection -->
+    <!-- ============================================================ -->
+    <extension name="collect-dtmf">
+      <condition field="destination_number" expression="^dtmf-collect$">
+        <action application="answer"/>
+        
+        <!-- Play prompt if set -->
+        <action application="playback" data="${dtmf_prompt}" inline="true"/>
+        
+        <!-- Collect digits -->
+        <action application="play_and_get_digits" 
+                data="${dtmf_min_digits} ${dtmf_max_digits} ${dtmf_max_tries} ${dtmf_timeout} # ${dtmf_prompt} ${dtmf_invalid} collected_digits \d+ ${dtmf_digit_timeout}"/>
+        
+        <!-- Report collected digits -->
+        <action application="curl" data="http://voice-ivr:8080/internal/ivr/input?session_id=${ivr_session_id}&digits=${collected_digits}"/>
+        
+        <action application="hangup"/>
+      </condition>
+    </extension>
+    
+    <!-- ============================================================ -->
+    <!-- Recording -->
+    <!-- ============================================================ -->
+    <extension name="record-audio">
+      <condition field="destination_number" expression="^record$">
+        <action application="answer"/>
+        <action application="set" data="recording_file=/recordings/${uuid}.wav"/>
+        
+        <!-- Play beep -->
+        <action application="playback" data="tone_stream://%(200,0,500)"/>
+        
+        <!-- Record -->
+        <action application="record" data="${recording_file} ${record_max_seconds} ${record_silence_threshold} ${record_silence_seconds}"/>
+        
+        <!-- Upload recording -->
+        <action application="curl" data="http://voice-ivr:8080/internal/recording/upload?session_id=${ivr_session_id}&file=${recording_file}"/>
+        
+        <action application="hangup"/>
+      </condition>
+    </extension>
+    
+    <!-- ============================================================ -->
+    <!-- Conference Bridge -->
+    <!-- ============================================================ -->
+    <extension name="conference">
+      <condition field="destination_number" expression="^conf-(.*)$">
+        <action application="answer"/>
+        <action application="set" data="conference_name=$1"/>
+        
+        <!-- Join conference -->
+        <action application="conference" data="${conference_name}@brivas"/>
+      </condition>
+    </extension>
+    
+    <!-- ============================================================ -->
+    <!-- Voicemail -->
+    <!-- ============================================================ -->
+    <extension name="voicemail">
+      <condition field="destination_number" expression="^vm-(.*)$">
+        <action application="answer"/>
+        <action application="set" data="mailbox=$1"/>
+        
+        <action application="voicemail" data="default ${mailbox}"/>
+      </condition>
+    </extension>
+    
+    <!-- ============================================================ -->
+    <!-- Default - Outbound via OpenSIPS -->
+    <!-- ============================================================ -->
+    <extension name="outbound">
+      <condition field="destination_number" expression="^(\+?[0-9]+)$">
+        <action application="set" data="destination=$1"/>
+        <action application="log" data="INFO Outbound call to: $1"/>
+        
+        <!-- Bridge via OpenSIPS -->
+        <action application="bridge" data="sofia/external/$1@opensips:5080"/>
+      </condition>
+    </extension>
+    
+  </context>
+</include>

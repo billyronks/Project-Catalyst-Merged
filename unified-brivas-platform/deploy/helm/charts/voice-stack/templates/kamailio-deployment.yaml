@@ -1,0 +1,119 @@
+{{- if .Values.kamailio.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "voice-stack.fullname" . }}-kamailio
+  labels:
+    {{- include "voice-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sbc
+spec:
+  replicas: {{ .Values.kamailio.replicas }}
+  selector:
+    matchLabels:
+      {{- include "voice-stack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: sbc
+  template:
+    metadata:
+      labels:
+        {{- include "voice-stack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: sbc
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.global.podSecurityContext | nindent 8 }}
+      containers:
+        - name: kamailio
+          image: "{{ .Values.kamailio.image.repository }}:{{ .Values.kamailio.image.tag }}"
+          imagePullPolicy: {{ .Values.kamailio.image.pullPolicy }}
+          ports:
+            - name: sip-udp
+              containerPort: 5060
+              protocol: UDP
+            - name: sip-tcp
+              containerPort: 5060
+              protocol: TCP
+            - name: sip-tls
+              containerPort: 5061
+              protocol: TCP
+            - name: sip-internal
+              containerPort: 5080
+              protocol: UDP
+          env:
+            - name: POP_ID
+              value: {{ .Values.pop.id | quote }}
+            - name: KAM_DEBUG
+              value: {{ .Values.kamailio.config.debugLevel | quote }}
+            - name: KAM_CHILDREN
+              value: {{ .Values.kamailio.config.children | quote }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/kamailio
+            {{- if .Values.kamailio.tls.enabled }}
+            - name: tls
+              mountPath: /etc/kamailio/tls
+              readOnly: true
+            {{- end }}
+          livenessProbe:
+            exec:
+              command:
+                - kamctl
+                - stats
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - kamctl
+                - stats
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.kamailio.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "voice-stack.fullname" . }}-kamailio-config
+        {{- if .Values.kamailio.tls.enabled }}
+        - name: tls
+          secret:
+            secretName: {{ .Values.kamailio.tls.secretName }}
+        {{- end }}
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "voice-stack.fullname" . }}-kamailio
+  labels:
+    {{- include "voice-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sbc
+    io.cilium/lb-ipam-layer2: "true"
+  annotations:
+    {{- toYaml .Values.kamailio.service.annotations | nindent 4 }}
+spec:
+  type: {{ .Values.kamailio.service.type }}
+  ports:
+    {{- range .Values.kamailio.service.ports }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .name }}
+      protocol: {{ .protocol }}
+    {{- end }}
+  selector:
+    {{- include "voice-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: sbc
+{{- end }}

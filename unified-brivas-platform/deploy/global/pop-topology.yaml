@@ -1,0 +1,354 @@
+# Global PoP Topology - 5 Tier-1 Full Mesh
+# Updated: 5 Tier-1 PoPs only (Lagos, London, Ashburn, São Paulo, Singapore)
+
+apiVersion: brivas.io/v1
+kind: PopTopology
+metadata:
+  name: brivas-global-5pop
+  version: "2.0"
+
+spec:
+  # ============================================================================
+  # TIER 1 POINTS OF PRESENCE - COMPLETE LIST (5 LOCATIONS)
+  # ============================================================================
+  
+  tier1:
+    # ──────────────────────────────────────────────────────────────────────────
+    # 1. LAGOS, NIGERIA - Africa Anchor
+    # ──────────────────────────────────────────────────────────────────────────
+    - id: lagos-ng-1
+      name: Lagos
+      country: Nigeria
+      region: Africa
+      datacenter: Equinix LG1
+      
+      network:
+        subnet: 102.217.214.0/25
+        vipRange: 102.217.214.3-102.217.214.62
+        kubeApiVip: 102.217.214.2
+        primaryInterface: eth0
+        
+      ixPeering:
+        - IXPN (Internet Exchange Point of Nigeria)
+        
+      transitProviders:
+        - MainOne
+        - MTN Nigeria
+        - Airtel Africa
+        - Globacom
+        
+      submarineCables:
+        - MainOne (60 Tbps)
+        - ACE
+        - WACS (14.5 Tbps)
+        - 2Africa (180 Tbps)
+        
+      coverage:
+        regions: [West Africa, Central Africa, North Africa]
+        population: "600M+"
+        countries: [NG, GH, CI, SN, BJ, TG, NE, BF, ML, GN, CM, EG, KE, ZA]
+        
+      voice:
+        sipTrunks:
+          - MTN Nigeria SIP
+          - Airtel Nigeria SIP
+          - Globacom SIP
+          - MainOne Voice
+        stirShaken: false
+        codecPreference: [G.729, G.711a, G.711u, OPUS]
+        
+      estimatedMonthlyCost: "$28,000 - $40,000"
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 2. LONDON, UK - Europe Anchor
+    # ──────────────────────────────────────────────────────────────────────────
+    - id: london-uk-1
+      name: London
+      country: United Kingdom
+      region: Europe
+      datacenter: Equinix LD4 (Slough)
+      
+      network:
+        subnet: 185.230.50.0/25
+        vipRange: 185.230.50.3-185.230.50.62
+        kubeApiVip: 185.230.50.2
+        primaryInterface: eth0
+        
+      ixPeering:
+        - LINX LON1 (900+ members)
+        - LONAP (200+ members)
+        
+      transitProviders:
+        - Cogent
+        - Arelion
+        - BT
+        - GTT
+        - Virgin Media
+        
+      submarineCables:
+        - TAT-14
+        - Apollo
+        - MAREA (via backhaul)
+        - Celtic Norse
+        - AEConnect
+        
+      coverage:
+        regions: [UK, Western Europe, Northern Europe, Middle East]
+        population: "500M+"
+        countries: [GB, IE, FR, DE, NL, BE, ES, PT, IT, NO, SE, DK, FI, AE, SA]
+        
+      voice:
+        sipTrunks:
+          - BT Wholesale SIP
+          - Virgin Media Business
+          - Gamma Telecom
+          - Vonage
+        stirShaken: false
+        codecPreference: [G.711a, G.711u, G.729, OPUS]
+        
+      estimatedMonthlyCost: "$35,000 - $48,000"
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 3. ASHBURN, USA - Americas East Anchor
+    # ──────────────────────────────────────────────────────────────────────────
+    - id: ashburn-us-1
+      name: Ashburn
+      country: United States
+      region: North America
+      datacenter: Equinix DC2
+      
+      network:
+        subnet: 198.51.100.0/25
+        vipRange: 198.51.100.3-198.51.100.62
+        kubeApiVip: 198.51.100.2
+        primaryInterface: eth0
+        
+      ixPeering:
+        - Equinix IX Ashburn (800+ members)
+        - DE-CIX New York (400+ members)
+        
+      transitProviders:
+        - Cogent
+        - Lumen
+        - Arelion
+        - GTT
+        - Hurricane Electric
+        
+      submarineCables:
+        - MAREA (6,600 km to Spain)
+        - DUNANT (6,400 km to France)
+        - TAT-14 (via backhaul)
+        
+      coverage:
+        regions: [United States, Canada, Caribbean, Central America]
+        population: "450M+"
+        countries: [US, CA, MX, JM, PR, BS, DO, HT, CU, GT, HN, SV, NI, CR, PA]
+        
+      voice:
+        sipTrunks:
+          - Bandwidth.com
+          - Twilio Elastic SIP
+          - Lumen Voice
+          - Telnyx
+        stirShaken: true  # MANDATORY - FCC requirement
+        codecPreference: [G.711u, G.711a, G.729, OPUS]
+        
+      estimatedMonthlyCost: "$41,000 - $56,000"
+      notes: "World's largest internet exchange concentration"
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 4. SÃO PAULO, BRAZIL - South America Anchor
+    # ──────────────────────────────────────────────────────────────────────────
+    - id: saopaulo-br-1
+      name: São Paulo
+      country: Brazil
+      region: South America
+      datacenter: Equinix SP4
+      
+      network:
+        subnet: 177.85.40.0/25
+        vipRange: 177.85.40.3-177.85.40.62
+        kubeApiVip: 177.85.40.2
+        primaryInterface: eth0
+        
+      ixPeering:
+        - IX.br São Paulo (2000+ members, 15+ Tbps peak)
+        
+      transitProviders:
+        - Lumen
+        - VIVO/Telefónica
+        - Claro
+        - Oi
+        
+      submarineCables:
+        - EllaLink (72ms to Lisbon)
+        - Seabras-1
+        - Monet
+        - SACS (to Angola)
+        
+      coverage:
+        regions: [Brazil, Southern Cone, Andean Region]
+        population: "450M+"
+        countries: [BR, AR, CL, CO, PE, VE, EC, BO, PY, UY, GY, SR]
+        
+      voice:
+        sipTrunks:
+          - Embratel SIP
+          - VIVO Empresas
+          - Claro Empresas
+          - Lumen Brazil
+        stirShaken: false
+        codecPreference: [G.729, G.711a, G.711u, OPUS]
+        
+      estimatedMonthlyCost: "$24,000 - $38,000"
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 5. SINGAPORE - Asia-Pacific Anchor
+    # ──────────────────────────────────────────────────────────────────────────
+    - id: singapore-sg-1
+      name: Singapore
+      country: Singapore
+      region: Asia-Pacific
+      datacenter: Equinix SG1
+      
+      network:
+        subnet: 103.200.60.0/25
+        vipRange: 103.200.60.3-103.200.60.62
+        kubeApiVip: 103.200.60.2
+        primaryInterface: eth0
+        
+      ixPeering:
+        - Equinix IX Singapore (400+ members)
+        - SGIX (100+ members)
+        
+      transitProviders:
+        - NTT
+        - Tata Communications
+        - PCCW Global
+        - Singtel
+        
+      submarineCables:
+        - SEA-ME-WE 3/4/5/6
+        - APG
+        - AAE-1
+        - SJC
+        - APCN-2
+        
+      coverage:
+        regions: [Southeast Asia, South Asia, East Asia, Oceania]
+        population: "4B+"
+        countries: [SG, MY, ID, TH, VN, PH, IN, AU, NZ, JP, KR, HK, TW, AE]
+        
+      voice:
+        sipTrunks:
+          - Singtel Business SIP
+          - StarHub Enterprise
+          - Tata Voice
+          - NTT Communications
+        stirShaken: false
+        codecPreference: [G.729, G.711a, OPUS, G.711u]
+        
+      estimatedMonthlyCost: "$36,000 - $52,000"
+      notes: "SEA submarine cable nexus, APAC regulatory-friendly hub"
+
+  # ============================================================================
+  # INTER-PoP MESH TOPOLOGY (Full Mesh - 10 Connections)
+  # ============================================================================
+  
+  mesh:
+    topology: full-mesh
+    
+    connections:
+      - endpoints: [lagos-ng-1, london-uk-1]
+        path: MainOne submarine
+        capacityGbps: 100
+        latencyMs: 45
+        protection: "1+1 (WACS backup)"
+        
+      - endpoints: [london-uk-1, ashburn-us-1]
+        path: TAT-14 / AEConnect
+        capacityGbps: 100
+        latencyMs: 70
+        protection: "1+1 (MAREA backup)"
+        
+      - endpoints: [ashburn-us-1, saopaulo-br-1]
+        path: Seabras-1 / BRUSA
+        capacityGbps: 100
+        latencyMs: 120
+        protection: "1+1 (Monet backup)"
+        
+      - endpoints: [saopaulo-br-1, london-uk-1]
+        path: EllaLink (direct)
+        capacityGbps: 100
+        latencyMs: 180
+        protection: "Via Ashburn backup"
+        
+      - endpoints: [singapore-sg-1, london-uk-1]
+        path: AAE-1 / SMW-5
+        capacityGbps: 100
+        latencyMs: 160
+        protection: "Diverse path"
+        
+      - endpoints: [singapore-sg-1, ashburn-us-1]
+        path: Pacific route (SJC → US)
+        capacityGbps: 100
+        latencyMs: 200
+        protection: "Via London backup"
+        
+      - endpoints: [lagos-ng-1, saopaulo-br-1]
+        path: SACS (South Atlantic)
+        capacityGbps: 40
+        latencyMs: 180
+        protection: "Via London backup"
+        
+      - endpoints: [singapore-sg-1, saopaulo-br-1]
+        path: Via Ashburn
+        capacityGbps: 40
+        latencyMs: 320
+        protection: "Via London backup"
+        
+      - endpoints: [lagos-ng-1, singapore-sg-1]
+        path: Via London (AAE-1)
+        capacityGbps: 40
+        latencyMs: 205
+        protection: "Direct 2Africa (future)"
+        
+      - endpoints: [lagos-ng-1, ashburn-us-1]
+        path: Via London
+        capacityGbps: 40
+        latencyMs: 115
+        protection: "Via São Paulo backup"
+
+  # ============================================================================
+  # FEDERATION MODEL
+  # ============================================================================
+  
+  federation:
+    topology: full-mesh
+    dataReplication: eventual-consistent-with-crdt
+    conflictResolution: last-writer-wins-with-vector-clocks
+    partitionTolerance: full-local-autonomy
+    autonomyDuration: "24+ hours"
+    syncIntervalMs: 100
+    
+    lumadbFederation:
+      mode: multi-master
+      replicationFactor: 5  # All PoPs
+      syncMode: async-with-local-commit
+      crdtTypes:
+        - G-Counter (balances, counters)
+        - LWW-Register (user profiles)
+        - OR-Set (session data)
+
+  # ============================================================================
+  # SUMMARY
+  # ============================================================================
+  
+  summary:
+    totalPops: 5
+    tier1Pops: 5
+    tier2Pops: 0
+    meshConnections: 10
+    servicesPerPop: 27
+    globalPopulation: "6B+ (95% within 200ms)"
+    monthlyInfraCost: "$164,000 - $234,000"

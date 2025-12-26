@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smsc
+  namespace: brivas
+  labels:
+    app: smsc
+    tier: backend
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: smsc
+  template:
+    metadata:
+      labels:
+        app: smsc
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+    spec:
+      serviceAccountName: brivas-service
+      containers:
+        - name: smsc
+          image: brivas/smsc:latest
+          ports:
+            - name: smpp
+              containerPort: 2775
+            - name: smpp-tls
+              containerPort: 2776
+            - name: grpc
+              containerPort: 50052
+            - name: metrics
+              containerPort: 9090
+          envFrom:
+            - configMapRef:
+                name: brivas-common-config
+            - secretRef:
+                name: lumadb-credentials
+          env:
+            - name: SMPP_MAX_CONNECTIONS
+              value: "10000"
+            - name: SMPP_WINDOW_SIZE
+              value: "100"
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "1Gi"
+            limits:
+              cpu: "4000m"
+              memory: "4Gi"
+          livenessProbe:
+            tcpSocket:
+              port: 2775
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 2775
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: smsc
+              topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smsc
+  namespace: brivas
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app: smsc
+  ports:
+    - name: smpp
+      port: 2775
+      targetPort: 2775
+    - name: smpp-tls
+      port: 2776
+      targetPort: 2776
+    - name: grpc
+      port: 50052
+      targetPort: 50052
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: smsc
+  namespace: brivas
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: smsc
+  minReplicas: 5
+  maxReplicas: 100
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60

@@ -1,0 +1,49 @@
+# Base Dockerfile for Rust services
+# Multi-stage build for minimal image size
+
+# ==================== Builder Stage ====================
+FROM rust:1.75-bookworm AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy workspace files
+COPY Cargo.toml Cargo.lock ./
+COPY shared/ shared/
+COPY crates/ crates/
+COPY microservices/ microservices/
+
+# Build the specific service (passed as build arg)
+ARG SERVICE_NAME
+RUN cargo build --release -p ${SERVICE_NAME}
+
+# ==================== Runtime Stage ====================
+FROM debian:bookworm-slim AS runtime
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -r -s /bin/false brivas
+
+# Copy binary from builder
+ARG SERVICE_NAME
+COPY --from=builder /app/target/release/${SERVICE_NAME} /usr/local/bin/service
+
+# Security: Run as non-root
+USER brivas
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget -q --spider http://localhost:8080/health || exit 1
+
+# Default port
+EXPOSE 8080
+
+ENTRYPOINT ["/usr/local/bin/service"]

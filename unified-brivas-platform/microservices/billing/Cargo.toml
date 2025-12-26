@@ -1,0 +1,45 @@
+[package]
+name = "billing"
+version.workspace = true
+edition.workspace = true
+description = "Billing Service - CDR collection, rating engine, invoicing, prepaid wallets"
+
+[[bin]]
+name = "billing"
+path = "src/main.rs"
+
+[dependencies]
+# Core
+brivas-core.workspace = true
+brivas-lumadb = { path = "../../shared/brivas-lumadb" }
+
+# Async runtime
+tokio.workspace = true
+
+# Web framework
+axum.workspace = true
+
+# gRPC
+tonic.workspace = true
+prost.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# UUID and time
+uuid.workspace = true
+chrono.workspace = true
+
+# Utilities
+dashmap.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+
+# Tracing
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+# Decimal for money
+rust_decimal = "1.33"
+rust_decimal_macros = "1.33"

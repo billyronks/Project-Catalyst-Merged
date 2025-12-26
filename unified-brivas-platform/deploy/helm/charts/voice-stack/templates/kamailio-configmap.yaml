@@ -1,0 +1,110 @@
+{{- if .Values.kamailio.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "voice-stack.fullname" . }}-kamailio-config
+  labels:
+    {{- include "voice-stack.labels" . | nindent 4 }}
+data:
+  kamailio.cfg: |
+    #!KAMAILIO
+    # Kamailio SBC - Auto-generated from Helm
+    
+    debug={{ .Values.kamailio.config.debugLevel }}
+    log_stderror=no
+    log_facility=LOG_LOCAL0
+    fork=yes
+    children={{ .Values.kamailio.config.children }}
+    auto_aliases=no
+    
+    listen=udp:0.0.0.0:5060
+    listen=tcp:0.0.0.0:5060
+    {{- if .Values.kamailio.tls.enabled }}
+    listen=tls:0.0.0.0:5061
+    {{- end }}
+    listen=udp:0.0.0.0:5080
+    
+    loadmodule "tm.so"
+    loadmodule "sl.so"
+    loadmodule "rr.so"
+    loadmodule "pv.so"
+    loadmodule "maxfwd.so"
+    loadmodule "textops.so"
+    loadmodule "siputils.so"
+    loadmodule "xlog.so"
+    loadmodule "sanity.so"
+    loadmodule "nathelper.so"
+    loadmodule "rtpengine.so"
+    loadmodule "dispatcher.so"
+    {{- if .Values.kamailio.config.pikeEnabled }}
+    loadmodule "pike.so"
+    {{- end }}
+    {{- if .Values.kamailio.config.topohEnabled }}
+    loadmodule "topoh.so"
+    {{- end }}
+    
+    modparam("tm", "fr_timer", 5000)
+    modparam("tm", "fr_inv_timer", 30000)
+    modparam("rtpengine", "rtpengine_sock", "udp:{{ include "voice-stack.fullname" . }}-rtpengine:22222")
+    modparam("dispatcher", "list_file", "/etc/kamailio/dispatcher.list")
+    {{- if .Values.kamailio.config.pikeEnabled }}
+    modparam("pike", "sampling_time_unit", 2)
+    modparam("pike", "reqs_density_per_unit", {{ .Values.kamailio.config.pikeReqsPerUnit }})
+    {{- end }}
+    
+    request_route {
+        if (!mf_process_maxfwd_header("10")) {
+            sl_send_reply("483", "Too Many Hops");
+            exit;
+        }
+        
+        if (!is_method("REGISTER")) {
+            record_route();
+        }
+        
+        if (has_totag()) {
+            if (loose_route()) {
+                route(RELAY);
+            }
+            exit;
+        }
+        
+        if (is_method("CANCEL")) {
+            if (t_check_trans()) {
+                t_relay();
+            }
+            exit;
+        }
+        
+        t_check_trans();
+        
+        if (has_body("application/sdp")) {
+            rtpengine_manage("replace-origin replace-session-connection");
+        }
+        
+        if (!ds_select_dst("1", "4")) {
+            sl_send_reply("503", "Service Unavailable");
+            exit;
+        }
+        
+        route(RELAY);
+    }
+    
+    route[RELAY] {
+        if (!t_relay()) {
+            sl_reply_error();
+        }
+    }
+
+  dispatcher.list: |
+    # OpenSIPS backends
+    1 sip:{{ include "voice-stack.fullname" . }}-opensips:5080 1
+
+  tls.cfg: |
+    [server:default]
+    method = TLSv1.2+
+    verify_certificate = no
+    require_certificate = no
+    private_key = /etc/kamailio/tls/tls.key
+    certificate = /etc/kamailio/tls/tls.crt
+{{- end }}

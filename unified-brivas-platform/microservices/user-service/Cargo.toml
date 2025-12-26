@@ -1,0 +1,51 @@
+[package]
+name = "user-service"
+version.workspace = true
+edition.workspace = true
+description = "User Service - Identity management, OAuth/OIDC, MFA, SCIM 2.0"
+
+[[bin]]
+name = "user-service"
+path = "src/main.rs"
+
+[dependencies]
+# Core
+brivas-core.workspace = true
+brivas-lumadb = { path = "../../shared/brivas-lumadb" }
+
+# Async runtime
+tokio.workspace = true
+
+# Web framework
+axum.workspace = true
+
+# gRPC
+tonic.workspace = true
+prost.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# UUID and time
+uuid.workspace = true
+chrono.workspace = true
+
+# Utilities
+dashmap.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+
+# Tracing
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+# Security
+argon2 = "0.5"
+ring = "0.17"
+base64.workspace = true
+jsonwebtoken = "9.2"
+rand.workspace = true
+
+# TOTP for MFA
+totp-rs = { version = "5.4", features = ["gen_secret", "otpauth"] }

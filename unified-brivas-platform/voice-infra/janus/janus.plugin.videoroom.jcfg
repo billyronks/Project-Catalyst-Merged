@@ -1,0 +1,40 @@
+# Janus VideoRoom Plugin Configuration
+# For video conferencing
+
+general: {
+    admin_key = "${VIDEOROOM_ADMIN_KEY}"
+    events = true
+    string_ids = true
+}
+
+# Default room template
+room-0: {
+    room = 0
+    description = "Template Room"
+    
+    # Participants
+    publishers = 100
+    bitrate = 4000000       # 4 Mbps max per publisher
+    bitrate_cap = true
+    fir_freq = 10
+    
+    # Codecs
+    audiocodec = "opus"
+    videocodec = "vp8,vp9,h264"
+    
+    # Extensions
+    videoorient_ext = true
+    playoutdelay_ext = true
+    transport_wide_cc_ext = true
+    
+    # Recording
+    record = false
+    rec_dir = "/var/recordings"
+    
+    # Participants
+    notify_joining = true
+    require_pvtid = false
+    
+    # Simulcast
+    video_svc = true
+}

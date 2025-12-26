@@ -1,0 +1,150 @@
+# Cilium eBPF Load Balancer - Helm Values
+# Parameterized for per-PoP deployment
+
+# Global settings
+global:
+  imageTag: "1.15.4"
+
+# ============================================================================
+# CORE CILIUM CONFIGURATION
+# ============================================================================
+
+# CRITICAL: Replace kube-proxy entirely
+kubeProxyReplacement: strict
+
+# Kubernetes API endpoint
+k8sServiceHost: "{{ .Values.pop.kubeApiVip }}"
+k8sServicePort: 6443
+
+# ============================================================================
+# eBPF CONFIGURATION
+# ============================================================================
+bpf:
+  masquerade: true
+  clockProbe: true
+  preallocateMaps: true
+  tproxy: true
+  
+  # High-capacity BPF map sizes for production load
+  lbMapMax: 512000       # Max LB entries
+  policyMapMax: 65536    # Network policies
+  ctTcpMax: 2097152      # Connection tracking TCP
+  ctAnyMax: 2097152      # Connection tracking other
+  natMax: 2097152        # NAT entries
+  neighMax: 1048576      # Neighbor entries
+
+# ============================================================================
+# LOAD BALANCER - XDP + DSR
+# ============================================================================
+loadBalancer:
+  # Direct Server Return - responses bypass LB
+  mode: dsr
+  dsrDispatch: opt  # Optimized dispatch
+  
+  # XDP native acceleration
+  acceleration: native
+  
+  # Maglev for consistent hashing (session affinity)
+  algorithm: maglev
+  maglev:
+    tableSize: 65521  # Prime for better distribution
+    hashSeed: "{{ .Values.pop.hashSeed | default `brivas-lb-seed` }}"
+
+# L2 Announcements for VIP advertisement
+l2announcements:
+  enabled: true
+
+l2podAnnouncements:
+  enabled: true
+  interface: "{{ .Values.pop.primaryInterface | default `eth0` }}"
+
+# Socket-level LB (bypass netfilter completely)
+socketLB:
+  enabled: true
+  hostNamespaceOnly: false
+
+# NodePort configuration for external access
+nodePort:
+  enabled: true
+  mode: dsr
+  acceleration: native
+
+# ============================================================================
+# BANDWIDTH MANAGER & QOS
+# ============================================================================
+bandwidthManager:
+  enabled: true
+  bbr: true  # BBR congestion control
+
+# ============================================================================
+# IPAM
+# ============================================================================
+ipam:
+  mode: cluster-pool
+  operator:
+    clusterPoolIPv4PodCIDRList:
+      - "{{ .Values.pop.podCidr | default `10.0.0.0/8` }}"
+    clusterPoolIPv4MaskSize: 24
+
+# ============================================================================
+# HUBBLE OBSERVABILITY
+# ============================================================================
+hubble:
+  enabled: true
+  
+  relay:
+    enabled: true
+    
+  ui:
+    enabled: true
+    
+  metrics:
+    enabled:
+      - dns
+      - drop
+      - tcp
+      - flow
+      - icmp
+      - http
+    serviceMonitor:
+      enabled: true
+
+# ============================================================================
+# CLUSTER MESH (Multi-PoP)
+# ============================================================================
+clustermesh:
+  useAPIServer: true
+  apiserver:
+    service:
+      type: LoadBalancer
+      loadBalancerIP: "{{ .Values.pop.clusterMeshVip }}"
+      annotations:
+        io.cilium/lb-ipam-ips: "{{ .Values.pop.clusterMeshVip }}"
+
+# ============================================================================
+# OPERATOR
+# ============================================================================
+operator:
+  replicas: 2
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# ============================================================================
+# AGENT
+# ============================================================================
+resources:
+  limits:
+    cpu: 4000m
+    memory: 4Gi
+  requests:
+    cpu: 100m
+    memory: 512Mi
+
+# Tolerations for running on all nodes
+tolerations:
+  - operator: Exists

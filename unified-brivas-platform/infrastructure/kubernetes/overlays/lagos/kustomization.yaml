@@ -1,0 +1,39 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: brivas
+
+resources:
+  - ../../base
+
+patches:
+  - patch: |-
+      - op: add
+        path: /spec/template/metadata/labels/topology.kubernetes.io~1region
+        value: af-west-lagos
+    target:
+      kind: Deployment
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 10
+    target:
+      kind: Deployment
+      name: smsc
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 10
+    target:
+      kind: Deployment
+      name: api-gateway
+
+configMapGenerator:
+  - name: pop-config
+    literals:
+      - POP_ID=lagos
+      - LUMADB_PRIMARY=lumadb://lumadb-lagos-primary.brivas.internal:5432/brivas
+      - LUMADB_REPLICAS=lumadb://lumadb-lagos-replica-1.brivas.internal:5432/brivas
+      - STIR_SHAKEN_REQUIRED=false
+      - DEFAULT_CURRENCY=NGN
+      - TIMEZONE=Africa/Lagos

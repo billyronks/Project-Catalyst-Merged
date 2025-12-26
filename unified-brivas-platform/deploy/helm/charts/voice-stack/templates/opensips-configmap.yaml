@@ -1,0 +1,111 @@
+{{- if .Values.opensips.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "voice-stack.fullname" . }}-opensips-config
+  labels:
+    {{- include "voice-stack.labels" . | nindent 4 }}
+data:
+  opensips.cfg: |
+    ####### OpenSIPS Class 5 - Auto-generated from Helm #######
+    
+    debug_mode=no
+    log_level=3
+    fork=yes
+    children={{ .Values.opensips.config.children }}
+    auto_scaling_profile = {{ .Values.opensips.config.autoScalingProfile }}
+    
+    listen=udp:0.0.0.0:5080
+    listen=tcp:0.0.0.0:5080
+    
+    loadmodule "signaling.so"
+    loadmodule "sl.so"
+    loadmodule "tm.so"
+    loadmodule "rr.so"
+    loadmodule "maxfwd.so"
+    loadmodule "dialog.so"
+    loadmodule "drouting.so"
+    loadmodule "load_balancer.so"
+    loadmodule "db_postgres.so"
+    loadmodule "acc.so"
+    {{- if .Values.opensips.fraudDetection.enabled }}
+    loadmodule "fraud_detection.so"
+    {{- end }}
+    
+    modparam("tm", "fr_timeout", {{ .Values.opensips.config.frTimeout }})
+    modparam("tm", "fr_inv_timeout", {{ .Values.opensips.config.frInvTimeout }})
+    modparam("dialog", "db_mode", 1)
+    modparam("dialog", "db_url", "postgres://$env(DB_USER):$env(DB_PASSWORD)@$env(DB_HOST):$env(DB_PORT)/$env(DB_NAME)")
+    modparam("dialog", "default_timeout", {{ .Values.opensips.config.dialogDefaultTimeout }})
+    
+    {{- if .Values.opensips.drouting.enabled }}
+    modparam("drouting", "db_url", "postgres://$env(DB_USER):$env(DB_PASSWORD)@$env(DB_HOST):$env(DB_PORT)/$env(DB_NAME)")
+    {{- end }}
+    
+    modparam("load_balancer", "db_url", "postgres://$env(DB_USER):$env(DB_PASSWORD)@$env(DB_HOST):$env(DB_PORT)/$env(DB_NAME)")
+    modparam("load_balancer", "probing_interval", 30)
+    
+    {{- if .Values.opensips.accounting.enabled }}
+    modparam("acc", "db_url", "postgres://$env(DB_USER):$env(DB_PASSWORD)@$env(DB_HOST):$env(DB_PORT)/$env(DB_NAME)")
+    modparam("acc", "db_flag", "1")
+    modparam("acc", "cdr_flag", "3")
+    {{- end }}
+    
+    route {
+        if (!mf_process_maxfwd_header(10)) {
+            send_reply(483, "Too Many Hops");
+            exit;
+        }
+        
+        if (!is_method("REGISTER|MESSAGE")) {
+            record_route();
+        }
+        
+        if (has_totag()) {
+            if (loose_route()) {
+                if (is_method("BYE")) {
+                    setflag(3);
+                    do_accounting("db", "cdr");
+                }
+                route(RELAY);
+            }
+            exit;
+        }
+        
+        if (is_method("CANCEL")) {
+            if (t_check_trans()) {
+                t_relay();
+            }
+            exit;
+        }
+        
+        t_check_trans();
+        
+        if (is_method("INVITE")) {
+            create_dialog();
+            setflag(3);
+            
+            {{- if .Values.opensips.fraudDetection.enabled }}
+            if (!check_fraud("$fU", "$rU")) {
+                send_reply(403, "Forbidden");
+                exit;
+            }
+            {{- end }}
+            
+            {{- if .Values.opensips.drouting.enabled }}
+            if (!do_routing("0")) {
+                send_reply(404, "No Route");
+                exit;
+            }
+            {{- end }}
+        }
+        
+        route(RELAY);
+    }
+    
+    route[RELAY] {
+        if (!t_relay()) {
+            sl_reply_error();
+        }
+    }
+{{- end }}

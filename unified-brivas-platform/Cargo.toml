@@ -1,0 +1,121 @@
+[workspace]
+resolver = "2"
+members = [
+    # Shared crates
+    "shared/brivas-core",
+    "shared/brivas-lumadb",
+    "shared/brivas-proto",
+    "shared/brivas-telemetry",
+    "shared/brivas-lb-health",
+    "shared/brivas-im-sdk",
+    "shared/brivas-rcs-sdk",
+    "shared/brivas-mcp-sdk",
+    "shared/brivas-stir-shaken-sdk",
+    "shared/brivas-video-sdk",
+    
+    # SIGTRAN Protocol Stack
+    "crates/brivas-sigtran",
+    
+    # Microservices - Gateway
+    "microservices/api-gateway",
+    
+    # Microservices - Telecom
+    "microservices/smsc",
+    "microservices/ussd-gateway",
+    "microservices/unified-messaging",
+    "microservices/voice-video-calling",
+    
+    # Microservices - Messaging
+    "microservices/instant-messaging",
+    "microservices/rcs-messaging",
+    
+    # Microservices - Integration
+    "microservices/hasura-bridge",
+    "microservices/mcp-gateway",
+    
+    # Microservices - STIR/SHAKEN
+    "microservices/stir-shaken-service",
+    
+    # Microservices - Business
+    "microservices/billing",
+    "microservices/payment-service",
+    "microservices/user-service",
+    
+    # Microservices - Infrastructure
+    "microservices/pop-controller",
+]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.75"
+license = "Proprietary"
+repository = "https://github.com/billyronks/unified-brivas-platform"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# Web frameworks
+axum = "0.8"
+tonic = "0.11"
+tonic-build = "0.11"
+prost = "0.12"
+prost-types = "0.12"
+
+# GraphQL
+async-graphql = { version = "7.0", features = ["chrono", "uuid"] }
+async-graphql-axum = "7.0"
+
+# WebSocket
+tokio-tungstenite = "0.21"
+futures-util = "0.3"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Async traits
+async-trait = "0.1"
+
+# Observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+opentelemetry = "0.21"
+
+# Utilities
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+dashmap = "5.5"
+parking_lot = "0.12"
+bytes = "1.5"
+base64 = "0.21"
+validator = { version = "0.18", features = ["derive"] }
+
+# Cryptography (for E2EE)
+x25519-dalek = "2.0"
+aes-gcm = "0.10"
+hkdf = "0.12"
+sha2 = "0.10"
+rand = "0.8"
+jsonwebtoken = "9.2"
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Database (PostgreSQL wire protocol for LumaDB)
+tokio-postgres = "0.7"
+deadpool-postgres = "0.12"
+
+# Shared crates
+brivas-core = { path = "shared/brivas-core" }
+brivas-lumadb = { path = "shared/brivas-lumadb" }
+brivas-proto = { path = "shared/brivas-proto" }
+brivas-telemetry = { path = "shared/brivas-telemetry" }
+brivas-im-sdk = { path = "shared/brivas-im-sdk" }
+brivas-rcs-sdk = { path = "shared/brivas-rcs-sdk" }
+brivas-mcp-sdk = { path = "shared/brivas-mcp-sdk" }

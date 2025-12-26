@@ -1,0 +1,72 @@
+# Janus WebRTC Gateway Configuration
+# For browser-based video calling
+
+general: {
+    configs_folder = "/etc/janus"
+    plugins_folder = "/opt/janus/lib/janus/plugins"
+    transports_folder = "/opt/janus/lib/janus/transports"
+    
+    log_to_stdout = true
+    log_to_file = "/var/log/janus/janus.log"
+    log_timestamps = true
+    debug_level = 4  # 0=none, 7=verbose
+    
+    admin_secret = "${JANUS_ADMIN_SECRET}"
+    token_auth = false
+    
+    server_name = "Brivas WebRTC Gateway"
+    session_timeout = 60
+}
+
+certificates: {
+    cert_pem = "/etc/janus/certs/janus.pem"
+    cert_key = "/etc/janus/certs/janus.key"
+    dtls_timeout = 500
+}
+
+media: {
+    ipv6 = false
+    rtp_port_range = "20000-40000"
+    
+    # Video settings
+    video_orientation = true
+    video_svc = true  # Enable simulcast/SVC
+    
+    # NACK/PLI for video quality
+    no_media_timer = 10
+    slowlink_threshold = 4
+    
+    # TURN server
+    turn_server = "turn.brivas.com"
+    turn_port = 3478
+    turn_type = "udp"
+    turn_user = "${TURN_USERNAME}"
+    turn_pwd = "${TURN_PASSWORD}"
+}
+
+nat: {
+    stun_server = "stun.brivas.com"
+    stun_port = 3478
+    
+    nice_debug = false
+    full_trickle = true
+    ice_lite = false
+    ice_tcp = true
+    
+    # NAT 1:1 mapping if behind NAT
+    # nat_1_1_mapping = "public.ip.address"
+}
+
+plugins: {
+    # Load video room plugin for conferencing
+    videoroom = "/opt/janus/lib/janus/plugins/libjanus_videoroom.so"
+    # Load SIP plugin for gateway to SIP
+    sip = "/opt/janus/lib/janus/plugins/libjanus_sip.so"
+    # Load streaming plugin
+    streaming = "/opt/janus/lib/janus/plugins/libjanus_streaming.so"
+}
+
+transports: {
+    websockets = "/opt/janus/lib/janus/transports/libjanus_websockets.so"
+    http = "/opt/janus/lib/janus/transports/libjanus_http.so"
+}

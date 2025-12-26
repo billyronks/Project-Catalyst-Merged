@@ -1,0 +1,290 @@
+# Voice Stack Helm Values
+# Configures Kamailio SBC, OpenSIPS Class 5, FreeSWITCH Media, and rtpengine
+
+pop:
+  id: "unknown"
+  region: "unknown"
+
+# ============================================================================
+# KAMAILIO SBC
+# ============================================================================
+kamailio:
+  enabled: true
+  replicas: 3
+  
+  image:
+    repository: kamailio/kamailio
+    tag: "5.7"
+    pullPolicy: IfNotPresent
+  
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  
+  service:
+    type: LoadBalancer
+    annotations:
+      io.cilium/lb-ipam-layer2: "true"
+    ports:
+      - name: sip-udp
+        port: 5060
+        protocol: UDP
+      - name: sip-tcp
+        port: 5060
+        protocol: TCP
+      - name: sip-tls
+        port: 5061
+        protocol: TCP
+  
+  config:
+    debugLevel: 2
+    children: 8
+    pikeEnabled: true
+    pikeReqsPerUnit: 30
+    topohEnabled: true
+    topohMaskKey: ""  # Set in secrets
+  
+  tls:
+    enabled: true
+    secretName: kamailio-tls
+  
+  dispatcher:
+    # OpenSIPS backends
+    backends: []
+
+# ============================================================================
+# OPENSIPS CLASS 5 SOFTSWITCH
+# ============================================================================
+opensips:
+  enabled: true
+  replicas: 5
+  
+  image:
+    repository: opensips/opensips
+    tag: "3.4"
+    pullPolicy: IfNotPresent
+  
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  
+  service:
+    type: ClusterIP
+    ports:
+      - name: sip-internal
+        port: 5080
+        protocol: UDP
+      - name: sip-internal-tcp
+        port: 5080
+        protocol: TCP
+      - name: mi-http
+        port: 8888
+        protocol: TCP
+  
+  database:
+    host: lumadb.brivas.svc.cluster.local
+    port: 5432
+    name: opensips
+    user: brivas
+    passwordSecretName: lumadb-credentials
+    passwordSecretKey: password
+  
+  config:
+    children: 16
+    autoScalingProfile: AGGRESSIVE
+    frTimeout: 5
+    frInvTimeout: 30
+    dialogDefaultTimeout: 3600
+  
+  drouting:
+    # LCR configuration loaded from database
+    enabled: true
+  
+  loadBalancer:
+    # FreeSWITCH backends
+    backends: []
+  
+  fraudDetection:
+    enabled: true
+  
+  accounting:
+    enabled: true
+    table: cdrs
+
+# ============================================================================
+# FREESWITCH MEDIA SERVER
+# ============================================================================
+freeswitch:
+  enabled: true
+  replicas: 5
+  
+  image:
+    repository: signalwire/freeswitch
+    tag: "1.10"
+    pullPolicy: IfNotPresent
+  
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+    limits:
+      cpu: 4000m
+      memory: 4Gi
+  
+  service:
+    type: ClusterIP
+    ports:
+      - name: sip
+        port: 5070
+        protocol: UDP
+      - name: event-socket
+        port: 8021
+        protocol: TCP
+  
+  eventSocket:
+    password: ClueCon  # Override in production
+    allowedAcl: "0.0.0.0/0"
+  
+  config:
+    maxSessions: 10000
+    sessionsPerSecond: 100
+  
+  tts:
+    engine: flite
+    voice: slt
+  
+  recording:
+    path: /recordings
+    format: wav
+    storageClass: local-path
+    size: 100Gi
+  
+  dialplan:
+    context: brivas
+
+# ============================================================================
+# RTPENGINE
+# ============================================================================
+rtpengine:
+  enabled: true
+  replicas: 3
+  
+  image:
+    repository: drachtio/rtpengine
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  
+  resources:
+    requests:
+      cpu: 500m
+      memory: 256Mi
+    limits:
+      cpu: 2000m
+      memory: 1Gi
+  
+  service:
+    type: ClusterIP
+    ports:
+      - name: ng-control
+        port: 22222
+        protocol: UDP
+  
+  config:
+    interface: "private/0.0.0.0"
+    listenNg: "0.0.0.0:22222"
+    portMin: 30000
+    portMax: 40000
+    logLevel: 5
+    recording: false
+  
+  # RTP port range
+  hostNetwork: true  # Required for RTP media
+
+# ============================================================================
+# STIR/SHAKEN (Optional - Ashburn only)
+# ============================================================================
+stirShaken:
+  enabled: false
+  
+  # Certificate Authority
+  ca:
+    url: "https://ca.stir-shaken.net"
+  
+  # Service Provider Code
+  spCode: ""
+  
+  # Certificate paths
+  certificate:
+    secretName: stir-shaken-cert
+    certKey: tls.crt
+    keyKey: tls.key
+  
+  # X5U URL (certificate download)
+  x5uUrl: ""
+
+# ============================================================================
+# VOICE-IVR MICROSERVICE
+# ============================================================================
+voiceIvr:
+  enabled: true
+  replicas: 5
+  
+  image:
+    repository: brivas/voice-ivr
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  
+  service:
+    type: LoadBalancer
+    annotations:
+      io.cilium/lb-ipam-layer2: "true"
+    ports:
+      - name: http
+        port: 8080
+      - name: grpc
+        port: 9090
+  
+  env:
+    LUMADB_URL: "postgres://brivas:password@lumadb:5432/brivas"
+    OPENSIPS_URL: "http://opensips:8888"
+    FREESWITCH_URL: "freeswitch:8021"
+    FREESWITCH_PASSWORD: "ClueCon"
+    RTPENGINE_URL: "udp:rtpengine:22222"
+
+# ============================================================================
+# COMMON SETTINGS
+# ============================================================================
+common:
+  enabled: false
+
+global:
+  imagePullSecrets: []
+  
+  podSecurityContext:
+    fsGroup: 1000
+  
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+  
+  nodeSelector: {}
+  
+  tolerations: []
+  
+  affinity: {}

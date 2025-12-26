@@ -1,0 +1,43 @@
+[package]
+name = "voice-video-calling"
+version.workspace = true
+edition.workspace = true
+description = "Voice and Video Calling Microservice with IVR, WebRTC, and Conferencing"
+
+[[bin]]
+name = "voice-video-calling"
+path = "src/main.rs"
+
+[dependencies]
+brivas-core.workspace = true
+brivas-lumadb = { path = "../../shared/brivas-lumadb" }
+brivas-video-sdk = { path = "../../shared/brivas-video-sdk" }
+brivas-stir-shaken-sdk = { path = "../../shared/brivas-stir-shaken-sdk" }
+
+tokio.workspace = true
+axum.workspace = true
+tonic.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
+dashmap.workspace = true
+reqwest.workspace = true
+futures-util.workspace = true
+
+# WebRTC/WebSocket
+tokio-tungstenite.workspace = true
+
+# Crypto for STIR/SHAKEN
+ring = "0.17"
+base64.workspace = true
+
+[features]
+default = []
+stir-shaken = []
+video = []
+

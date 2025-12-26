@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: brivas-common-config
+  namespace: brivas
+data:
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.brivas-monitoring:4317"
+  METRICS_ENABLED: "true"
+  TRACING_ENABLED: "true"
+  RUST_BACKTRACE: "1"

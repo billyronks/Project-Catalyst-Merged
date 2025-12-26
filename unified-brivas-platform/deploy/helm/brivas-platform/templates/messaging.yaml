@@ -1,0 +1,82 @@
+{{- if .Values.unified-messaging.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "brivas.fullname" . }}-messaging
+  labels:
+    {{- include "brivas.labels" . | nindent 4 }}
+    app.kubernetes.io/component: unified-messaging
+spec:
+  replicas: {{ index .Values "unified-messaging" "replicas" }}
+  selector:
+    matchLabels:
+      {{- include "brivas.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: unified-messaging
+  template:
+    metadata:
+      labels:
+        {{- include "brivas.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: unified-messaging
+    spec:
+      containers:
+        - name: messaging
+          image: "brivas/unified-messaging:{{ .Values.global.imageTag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: grpc
+              containerPort: 9090
+          env:
+            - name: HTTP_BIND
+              value: "0.0.0.0:8080"
+            - name: LUMADB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.lumadb.secretName }}
+                  key: url
+            {{- if (index .Values "unified-messaging" "platforms" "whatsapp" "enabled") }}
+            - name: WHATSAPP_PHONE_NUMBER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: whatsapp-credentials
+                  key: phone-number-id
+            - name: WHATSAPP_ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: whatsapp-credentials
+                  key: access-token
+            {{- end }}
+            {{- if (index .Values "unified-messaging" "platforms" "telegram" "enabled") }}
+            - name: TELEGRAM_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-credentials
+                  key: bot-token
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "brivas.fullname" . }}-messaging
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      name: http
+    - port: 9090
+      targetPort: grpc
+      name: grpc
+  selector:
+    {{- include "brivas.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: unified-messaging
+{{- end }}

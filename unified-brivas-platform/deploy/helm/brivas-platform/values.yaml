@@ -1,0 +1,147 @@
+# Brivas Platform Helm Values
+
+global:
+  imageTag: "latest"
+  imagePullPolicy: IfNotPresent
+  lumadb:
+    host: lumadb.brivas.svc.cluster.local
+    port: 5432
+    database: brivas
+    secretName: lumadb-credentials
+
+# ============== SMSC ==============
+smsc:
+  enabled: true
+  replicas: 3
+  image:
+    repository: brivas/smsc
+    tag: ""  # Uses global.imageTag
+  
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "2000m"
+  
+  service:
+    type: ClusterIP
+    httpPort: 8080
+    grpcPort: 9090
+    smppPort: 2775
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilization: 70
+
+  carriers:
+    mtn:
+      enabled: true
+      host: smpp.mtn.ng
+      port: 2775
+    airtel:
+      enabled: true
+      host: smpp.airtel.ng
+      port: 2775
+
+# ============== USSD Gateway ==============
+ussd-gateway:
+  enabled: true
+  replicas: 2
+  
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+  
+  operators:
+    mtn: true
+    airtel: true
+    glo: true
+    nineMobile: true
+  
+  sessionTtlSecs: 180
+
+# ============== Unified Messaging ==============
+unified-messaging:
+  enabled: true
+  replicas: 3
+  
+  platforms:
+    whatsapp:
+      enabled: true
+      phoneNumberId: ""  # Set via --set or secret
+    telegram:
+      enabled: true
+      # botToken via secret
+    messenger:
+      enabled: true
+    slack:
+      enabled: true
+    discord:
+      enabled: true
+    viber:
+      enabled: false
+    line:
+      enabled: false
+    teams:
+      enabled: true
+
+# ============== Payment Service ==============
+payment-service:
+  enabled: true
+  replicas: 2
+  
+  providers:
+    paystack:
+      enabled: true
+      # secretKey via Kubernetes secret
+    flutterwave:
+      enabled: true
+
+# ============== Landing Service ==============
+landing-service:
+  enabled: true
+  replicas: 2
+  
+  image:
+    repository: brivas/landing
+  
+  ingress:
+    enabled: true
+    className: nginx
+    hosts:
+      - host: brivas.com
+        paths:
+          - path: /
+            pathType: Prefix
+
+# ============== Ingress ==============
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: api.brivas.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: api-gateway
+    - host: smpp.brivas.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: smsc
+  tls:
+    - secretName: brivas-tls
+      hosts:
+        - api.brivas.com
+        - smpp.brivas.com

@@ -1,0 +1,100 @@
+{{- if .Values.opensips.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "voice-stack.fullname" . }}-opensips
+  labels:
+    {{- include "voice-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: class5
+spec:
+  replicas: {{ .Values.opensips.replicas }}
+  selector:
+    matchLabels:
+      {{- include "voice-stack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: class5
+  template:
+    metadata:
+      labels:
+        {{- include "voice-stack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: class5
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: opensips
+          image: "{{ .Values.opensips.image.repository }}:{{ .Values.opensips.image.tag }}"
+          imagePullPolicy: {{ .Values.opensips.image.pullPolicy }}
+          ports:
+            - name: sip-udp
+              containerPort: 5080
+              protocol: UDP
+            - name: sip-tcp
+              containerPort: 5080
+              protocol: TCP
+            - name: mi-http
+              containerPort: 8888
+              protocol: TCP
+          env:
+            - name: POP_ID
+              value: {{ .Values.pop.id | quote }}
+            - name: DB_HOST
+              value: {{ .Values.opensips.database.host | quote }}
+            - name: DB_PORT
+              value: {{ .Values.opensips.database.port | quote }}
+            - name: DB_NAME
+              value: {{ .Values.opensips.database.name | quote }}
+            - name: DB_USER
+              value: {{ .Values.opensips.database.user | quote }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.opensips.database.passwordSecretName }}
+                  key: {{ .Values.opensips.database.passwordSecretKey }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/opensips
+          livenessProbe:
+            httpGet:
+              path: /mi/version
+              port: mi-http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /mi/version
+              port: mi-http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.opensips.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "voice-stack.fullname" . }}-opensips-config
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "voice-stack.fullname" . }}-opensips
+  labels:
+    {{- include "voice-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: class5
+spec:
+  type: {{ .Values.opensips.service.type }}
+  ports:
+    {{- range .Values.opensips.service.ports }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .name }}
+      protocol: {{ .protocol }}
+    {{- end }}
+  selector:
+    {{- include "voice-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: class5
+{{- end }}

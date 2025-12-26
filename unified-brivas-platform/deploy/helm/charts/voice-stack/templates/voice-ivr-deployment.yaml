@@ -1,0 +1,115 @@
+{{- if .Values.voiceIvr.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "voice-stack.fullname" . }}-voice-ivr
+  labels:
+    {{- include "voice-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: voice-ivr
+spec:
+  replicas: {{ .Values.voiceIvr.replicas }}
+  selector:
+    matchLabels:
+      {{- include "voice-stack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: voice-ivr
+  template:
+    metadata:
+      labels:
+        {{- include "voice-stack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: voice-ivr
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.global.podSecurityContext | nindent 8 }}
+      containers:
+        - name: voice-ivr
+          image: "{{ .Values.voiceIvr.image.repository }}:{{ .Values.voiceIvr.image.tag }}"
+          imagePullPolicy: {{ .Values.voiceIvr.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: grpc
+              containerPort: 9090
+              protocol: TCP
+          env:
+            - name: POP_ID
+              value: {{ .Values.pop.id | quote }}
+            - name: LUMADB_URL
+              value: {{ .Values.voiceIvr.env.LUMADB_URL | quote }}
+            - name: OPENSIPS_URL
+              value: {{ .Values.voiceIvr.env.OPENSIPS_URL | quote }}
+            - name: FREESWITCH_URL
+              value: {{ .Values.voiceIvr.env.FREESWITCH_URL | quote }}
+            - name: FREESWITCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "voice-stack.fullname" . }}-secrets
+                  key: freeswitch-password
+            - name: RTPENGINE_URL
+              value: {{ .Values.voiceIvr.env.RTPENGINE_URL | quote }}
+            - name: STIR_SHAKEN_ENABLED
+              value: {{ .Values.stirShaken.enabled | quote }}
+            {{- if .Values.stirShaken.enabled }}
+            - name: STIR_SHAKEN_CERT_PATH
+              value: "/etc/stir-shaken/tls.crt"
+            - name: STIR_SHAKEN_KEY_PATH
+              value: "/etc/stir-shaken/tls.key"
+            {{- end }}
+          {{- if .Values.stirShaken.enabled }}
+          volumeMounts:
+            - name: stir-shaken-cert
+              mountPath: /etc/stir-shaken
+              readOnly: true
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.voiceIvr.resources | nindent 12 }}
+      {{- if .Values.stirShaken.enabled }}
+      volumes:
+        - name: stir-shaken-cert
+          secret:
+            secretName: {{ .Values.stirShaken.certificate.secretName }}
+      {{- end }}
+      {{- with .Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "voice-stack.fullname" . }}-voice-ivr
+  labels:
+    {{- include "voice-stack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: voice-ivr
+    io.cilium/lb-ipam-layer2: "true"
+  annotations:
+    {{- toYaml .Values.voiceIvr.service.annotations | nindent 4 }}
+spec:
+  type: {{ .Values.voiceIvr.service.type }}
+  ports:
+    {{- range .Values.voiceIvr.service.ports }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .name }}
+      protocol: TCP
+    {{- end }}
+  selector:
+    {{- include "voice-stack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: voice-ivr
+{{- end }}

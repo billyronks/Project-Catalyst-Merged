@@ -1,0 +1,236 @@
+# Complete Microservices Deployment Matrix - 27 Services
+# Updated with Voice/IVR microservice
+
+apiVersion: brivas.io/v1
+kind: ServiceMatrix
+metadata:
+  name: brivas-services-v2
+  version: "2.0"
+
+spec:
+  # ============================================================================
+  # CORE GATEWAY SERVICES (1)
+  # ============================================================================
+  gateway:
+    - name: api-gateway
+      description: "Unified API entry point (REST, gRPC, GraphQL, WebSocket, MCP)"
+      language: rust
+      critical: true
+      vipOffset: 3
+      replicas: 5
+      ports:
+        - { name: http, port: 80, targetPort: 8080 }
+        - { name: https, port: 443, targetPort: 8443 }
+        - { name: grpc, port: 9090 }
+        - { name: graphql, port: 8443 }
+        - { name: websocket, port: 3000 }
+      lb:
+        dsr: true
+        algorithm: maglev
+      resources:
+        cpu: 2000m
+        memory: 2Gi
+
+  # ============================================================================
+  # TELECOM CORE SERVICES (6)
+  # ============================================================================
+  telecom:
+    - name: smsc
+      description: "SMS Center - SMPP protocol, 100K+ TPS"
+      language: rust
+      critical: true
+      vipOffset: 4
+      replicas: 10
+      ports:
+        - { name: smpp, port: 2775 }
+        - { name: smpp-tls, port: 2776 }
+        - { name: http, port: 8080 }
+        - { name: grpc, port: 9090 }
+      lb:
+        dsr: true
+        sessionAffinity: source_ip
+        sessionTimeout: 3600
+        algorithm: maglev
+      resources:
+        cpu: 4000m
+        memory: 4Gi
+
+    - name: ussd-gateway
+      description: "USSD session management"
+      language: rust
+      critical: true
+      vipOffset: 6
+      replicas: 5
+      ports:
+        - { name: http, port: 8080 }
+        - { name: grpc, port: 9090 }
+        - { name: ussd, port: 7777 }
+      lb:
+        dsr: true
+        sessionAffinity: source_ip
+        sessionTimeout: 180
+
+    - name: unified-messaging-hub
+      description: "16-platform messaging"
+      language: rust
+      critical: true
+      vipOffset: 8
+      replicas: 5
+      ports:
+        - { name: http, port: 8080 }
+        - { name: grpc, port: 9090 }
+        - { name: websocket, port: 3000 }
+      lb:
+        dsr: true
+        algorithm: round_robin
+
+    - name: voice-ivr
+      description: "Voice/IVR platform - OpenSIPS, FreeSWITCH, Kamailio"
+      language: rust
+      critical: true
+      vipOffset: 27
+      replicas: 5
+      ports:
+        - { name: sip, port: 5060 }
+        - { name: sip-tls, port: 5061 }
+        - { name: freeswitch, port: 8021 }
+        - { name: http, port: 8080 }
+        - { name: grpc, port: 9090 }
+      lb:
+        dsr: true
+        sessionAffinity: source_ip
+      components:
+        - kamailio-sbc
+        - opensips-class5
+        - freeswitch-media
+        - rtpengine
+      stirShaken:
+        ashburn-us-1: true
+        others: false
+      resources:
+        cpu: 4000m
+        memory: 4Gi
+
+    - name: dlr-service
+      description: "Delivery report processing"
+      language: rust
+      critical: true
+      vipOffset: 20
+      replicas: 5
+      ports:
+        - { name: http, port: 8080 }
+        - { name: grpc, port: 9090 }
+
+    - name: routing-service
+      description: "Intelligent message/call routing"
+      language: rust
+      critical: true
+      vipOffset: 19
+      replicas: 3
+      ports:
+        - { name: http, port: 8080 }
+        - { name: grpc, port: 9090 }
+
+  # ============================================================================
+  # BUSINESS SERVICES (8)
+  # ============================================================================
+  business:
+    - name: user-service
+      vipOffset: 10
+      replicas: 3
+      ports: [{ name: http, port: 8080 }, { name: grpc, port: 9090 }]
+
+    - name: billing-service
+      vipOffset: 11
+      critical: true
+      replicas: 3
+      ports: [{ name: http, port: 8080 }, { name: grpc, port: 9090 }]
+
+    - name: campaign-service
+      vipOffset: 12
+      replicas: 3
+      ports: [{ name: http, port: 8080 }, { name: grpc, port: 9090 }]
+
+    - name: reseller-service
+      vipOffset: 17
+      replicas: 2
+      ports: [{ name: http, port: 8080 }, { name: grpc, port: 9090 }]
+
+    - name: template-service
+      vipOffset: 18
+      replicas: 2
+      ports: [{ name: http, port: 8080 }, { name: grpc, port: 9090 }]
+
+    - name: vas-service
+      vipOffset: 16
+      replicas: 2
+      ports: [{ name: http, port: 8080 }, { name: grpc, port: 9090 }]
+
+    - name: payment-service
+      vipOffset: 15
+      critical: true
+      replicas: 3
+      ports: [{ name: http, port: 8080 }, { name: grpc, port: 9090 }]
+
+    - name: notification-service
+      vipOffset: 22
+      replicas: 2
+      ports: [{ name: http, port: 8080 }, { name: grpc, port: 9090 }]
+
+  # ============================================================================
+  # PLATFORM SERVICES (3)
+  # ============================================================================
+  platform:
+    - name: analytics-service
+      vipOffset: 13
+      replicas: 3
+      ports: [{ name: http, port: 8080 }, { name: grpc, port: 9090 }]
+
+    - name: ai-service
+      language: python
+      vipOffset: 14
+      replicas: 3
+      ports:
+        - { name: http, port: 8080 }
+        - { name: grpc, port: 9090 }
+        - { name: ollama, port: 11434 }
+
+    - name: scheduler-service
+      vipOffset: 21
+      replicas: 2
+      ports: [{ name: http, port: 8080 }, { name: grpc, port: 9090 }]
+
+  # ============================================================================
+  # WEB SERVICES (2)
+  # ============================================================================
+  web:
+    - name: landing-service
+      language: typescript
+      vipOffset: 23
+      replicas: 2
+      ports: [{ name: http, port: 80 }, { name: https, port: 443 }]
+
+    - name: admin-dashboard
+      language: typescript
+      vipOffset: 24
+      replicas: 2
+      ports: [{ name: http, port: 80 }, { name: https, port: 443 }]
+
+  # ============================================================================
+  # INFRASTRUCTURE SERVICES (2)
+  # ============================================================================
+  infrastructure:
+    - name: pop-controller
+      vipOffset: 25
+      critical: true
+      replicas: 2
+      ports: [{ name: http, port: 8080 }, { name: grpc, port: 9090 }]
+
+    - name: lb-health-monitor
+      vipOffset: 26
+      critical: true
+      replicas: 1
+      ports: [{ name: http, port: 8080 }]
+
+# Total: 27 microservices per PoP
+# Gateway: 1, Telecom: 6, Business: 8, Platform: 3, Web: 2, Infra: 2

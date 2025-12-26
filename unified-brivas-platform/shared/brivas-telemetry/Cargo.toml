@@ -1,0 +1,21 @@
+[package]
+name = "brivas-telemetry"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "brivas_telemetry"
+path = "src/lib.rs"
+
+[dependencies]
+tracing.workspace = true
+tracing-subscriber.workspace = true
+opentelemetry.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+parking_lot.workspace = true
+
+opentelemetry_sdk = { version = "0.21", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.14", features = ["tonic"] }
+tracing-opentelemetry = "0.22"
