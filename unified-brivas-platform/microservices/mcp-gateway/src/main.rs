@@ -18,6 +18,7 @@ mod server;
 mod tools;
 mod resources;
 mod prompts;
+mod aiops_tools;
 
 pub use config::McpConfig;
 

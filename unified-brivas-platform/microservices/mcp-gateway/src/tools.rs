@@ -11,7 +11,7 @@ pub struct BrivasTools {
 
 impl BrivasTools {
     pub fn new() -> Self {
-        let tools: Vec<Box<dyn Tool>> = vec![
+        let mut tools: Vec<Box<dyn Tool>> = vec![
             Box::new(SendSmsTool),
             Box::new(SendRcsTool),
             Box::new(CreateCampaignTool),
@@ -20,6 +20,10 @@ impl BrivasTools {
             Box::new(InitiateCallTool),
             Box::new(CreateUssdMenuTool),
         ];
+        
+        // Add AIOps tools
+        tools.extend(crate::aiops_tools::get_aiops_tools());
+        
         Self { tools }
     }
 

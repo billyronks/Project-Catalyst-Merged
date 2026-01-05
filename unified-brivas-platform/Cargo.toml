@@ -43,6 +43,9 @@ members = [
     
     # Microservices - Infrastructure
     "microservices/pop-controller",
+    "microservices/aiops-engine",
+    "microservices/gitops-controller",
+    "microservices/dify-orchestrator",
 ]
 
 [workspace.package]

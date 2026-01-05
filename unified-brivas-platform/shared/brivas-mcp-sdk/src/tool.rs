@@ -76,6 +76,16 @@ impl ToolResult {
             is_error: false,
         }
     }
+    
+    /// Create a JSON result (serialized as text)
+    pub fn json(value: serde_json::Value) -> Self {
+        Self {
+            content: vec![ToolResultContent::Text { 
+                text: serde_json::to_string_pretty(&value).unwrap_or_else(|_| "{}".to_string())
+            }],
+            is_error: false,
+        }
+    }
 
     /// Create an error result
     pub fn error(message: impl Into<String>) -> Self {

@@ -40,7 +40,14 @@ pub enum SessionState {
     BindTransmitter,
     BindTransceiver,
     Closed,
+    Reconnecting,
 }
+
+/// SMPP reconnection configuration
+pub const ENQUIRE_LINK_INTERVAL_SECS: u64 = 30;
+pub const RECONNECT_DELAY_SECS: u64 = 5;
+pub const MAX_RECONNECT_ATTEMPTS: u32 = 10;
+pub const SESSION_TIMEOUT_SECS: u64 = 120;
 
 /// SMPP session
 #[derive(Clone)]
@@ -49,6 +56,9 @@ pub struct SmppSession {
     pub system_id: Option<String>,
     pub state: Arc<RwLock<SessionState>>,
     pub throughput_limit: u32, // messages per second
+    pub last_activity: Arc<RwLock<std::time::Instant>>,
+    pub peer_address: Option<String>,
+    pub disconnect_count: Arc<AtomicU64>,
 }
 
 /// SMPP command IDs
@@ -141,15 +151,22 @@ impl SmppServer {
                             }
 
                             let session_id = uuid::Uuid::new_v4().to_string();
+                            let peer_addr = addr.to_string();
                             let session = SmppSession {
                                 id: session_id.clone(),
                                 system_id: None,
                                 state: Arc::new(RwLock::new(SessionState::Open)),
                                 throughput_limit: 1000, // Default 1000 TPS per session
+                                last_activity: Arc::new(RwLock::new(std::time::Instant::now())),
+                                peer_address: Some(peer_addr),
+                                disconnect_count: Arc::new(AtomicU64::new(0)),
                             };
 
                             self.sessions.insert(session_id.clone(), session.clone());
                             self.metrics.connections_total.fetch_add(1, Ordering::Relaxed);
+                            self.metrics.connections_active.fetch_add(1, Ordering::Relaxed);
+                            
+                            info!(session_id = %session_id, peer = %addr, "New SMPP session established");
                             self.metrics.connections_active.fetch_add(1, Ordering::Relaxed);
 
                             let sessions = self.sessions.clone();
