@@ -6,10 +6,10 @@ services:
     image: lumadb/lumadb:latest
     container_name: brivas-lumadb
     ports:
-      - "5432:5432"   # PostgreSQL wire protocol
-      - "6379:6379"   # Redis wire protocol
+      - "5432:5432" # PostgreSQL wire protocol
+      - "6379:6379" # Redis wire protocol
       - "27017:27017" # MongoDB wire protocol
-      - "9092:9092"   # Kafka wire protocol
+      - "9092:9092" # Kafka wire protocol
     environment:
       LUMADB_USER: brivas
       LUMADB_PASSWORD: ${LUMADB_PASSWORD:-brivas_secret}
@@ -22,7 +22,7 @@ services:
       - lumadb_data:/data
       - ./migrations/lumadb:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "brivas"]
+      test: [ "CMD", "pg_isready", "-U", "brivas" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -55,7 +55,7 @@ services:
       lumadb:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -154,6 +154,132 @@ services:
     networks:
       - brivas-network
 
+  # Hasura Bridge - GraphQL/REST API Gateway with Auto-Discovery
+  hasura-bridge:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.hasura-bridge
+    container_name: brivas-hasura-bridge
+    ports:
+      - "8085:8080"
+    environment:
+      RUST_LOG: info
+      HTTP_BIND: 0.0.0.0:8080
+      LUMADB_URL: postgres://brivas:${LUMADB_PASSWORD:-brivas_secret}@lumadb:5432/brivas
+    depends_on:
+      lumadb:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - brivas-network
+
+  # MCP Gateway - Model Context Protocol Server
+  mcp-gateway:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.mcp-gateway
+    container_name: brivas-mcp-gateway
+    ports:
+      - "8086:8080"
+    environment:
+      RUST_LOG: info
+      HTTP_BIND: 0.0.0.0:8080
+      LUMADB_URL: postgres://brivas:${LUMADB_PASSWORD:-brivas_secret}@lumadb:5432/brivas
+      AIOPS_ENDPOINT: http://aiops-engine:8080
+      DIFY_ENDPOINT: http://dify-orchestrator:8080
+    depends_on:
+      lumadb:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - brivas-network
+
+  # AIOps Engine - Autonomous IT Operations
+  aiops-engine:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.aiops-engine
+    container_name: brivas-aiops-engine
+    ports:
+      - "8087:8080"
+    environment:
+      RUST_LOG: info
+      HTTP_BIND: 0.0.0.0:8080
+      LUMADB_URL: postgres://brivas:${LUMADB_PASSWORD:-brivas_secret}@lumadb:5432/brivas
+      SMSC_ENDPOINT: http://smsc:8080
+      DETECTION_INTERVAL_SECS: 30
+    depends_on:
+      lumadb:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - brivas-network
+
+  # GitOps Controller - Git-based Configuration Management
+  gitops-controller:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.gitops-controller
+    container_name: brivas-gitops-controller
+    ports:
+      - "8088:8080"
+    environment:
+      RUST_LOG: info
+      HTTP_BIND: 0.0.0.0:8080
+      LUMADB_URL: postgres://brivas:${LUMADB_PASSWORD:-brivas_secret}@lumadb:5432/brivas
+      GITOPS_REPOS_DIR: /var/lib/gitops/repos
+      SYNC_INTERVAL_SECS: 60
+      AIOPS_ENDPOINT: http://aiops-engine:8080
+    volumes:
+      - gitops_repos:/var/lib/gitops/repos
+    depends_on:
+      lumadb:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - brivas-network
+
+  # Dify Orchestrator - AI Workflows and Agents
+  dify-orchestrator:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.dify-orchestrator
+    container_name: brivas-dify-orchestrator
+    ports:
+      - "8089:8080"
+    environment:
+      RUST_LOG: info
+      HTTP_BIND: 0.0.0.0:8080
+      LUMADB_URL: postgres://brivas:${LUMADB_PASSWORD:-brivas_secret}@lumadb:5432/brivas
+      DIFY_BASE_URL: ${DIFY_BASE_URL:-https://api.dify.ai/v1}
+      DIFY_API_KEY: ${DIFY_API_KEY:-}
+    depends_on:
+      lumadb:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - brivas-network
+
   # Customer Web Frontend
   customer-web:
     build:
@@ -204,6 +330,8 @@ services:
 
 volumes:
   lumadb_data:
+    driver: local
+  gitops_repos:
     driver: local
 
 networks:

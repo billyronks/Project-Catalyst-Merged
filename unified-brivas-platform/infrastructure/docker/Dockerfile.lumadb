@@ -1,0 +1,74 @@
+# LumaDB - Unified Database Layer
+# High-performance multi-protocol database supporting PostgreSQL, Redis, MongoDB, ClickHouse, Kafka
+# Reference: https://github.com/abiolaogu/LumaDB
+
+# ==================== Builder Stage ====================
+FROM rust:1.75-bookworm AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    cmake \
+    protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone LumaDB from source
+ARG LUMADB_VERSION=main
+RUN git clone --depth 1 --branch ${LUMADB_VERSION} https://github.com/abiolaogu/LumaDB.git .
+
+# Build LumaDB
+RUN cargo build --release
+
+# ==================== Runtime Stage ====================
+FROM debian:bookworm-slim AS runtime
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -r -s /bin/false lumadb \
+    && mkdir -p /var/lib/lumadb/data \
+    && mkdir -p /var/lib/lumadb/wal \
+    && mkdir -p /var/log/lumadb \
+    && chown -R lumadb:lumadb /var/lib/lumadb /var/log/lumadb
+
+# Copy binaries from builder
+COPY --from=builder /app/target/release/lumadb-server /usr/local/bin/lumadb-server
+COPY --from=builder /app/target/release/lumadb-cli /usr/local/bin/lumadb-cli
+
+# Security: Run as non-root
+USER lumadb
+
+# Environment variables
+ENV RUST_LOG=info
+ENV LUMADB_DATA_DIR=/var/lib/lumadb/data
+ENV LUMADB_WAL_DIR=/var/lib/lumadb/wal
+ENV LUMADB_LOG_DIR=/var/log/lumadb
+
+# PostgreSQL wire protocol port
+ENV LUMADB_PG_PORT=5432
+# Redis wire protocol port
+ENV LUMADB_REDIS_PORT=6379
+# MongoDB wire protocol port
+ENV LUMADB_MONGO_PORT=27017
+# gRPC port
+ENV LUMADB_GRPC_PORT=9090
+# HTTP metrics port
+ENV LUMADB_HTTP_PORT=8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD /usr/local/bin/lumadb-cli health || exit 1
+
+# Volumes for persistence
+VOLUME ["/var/lib/lumadb/data", "/var/lib/lumadb/wal"]
+
+# Expose all protocol ports
+EXPOSE 5432 6379 27017 9090 8080
+
+ENTRYPOINT ["/usr/local/bin/lumadb-server"]
+CMD ["--config", "/etc/lumadb/config.toml"]

@@ -1,0 +1,54 @@
+# Dockerfile for Dify Orchestrator
+# AI platform integration with Dify workflows, agents, and RAG
+
+# ==================== Builder Stage ====================
+FROM rust:1.75-bookworm AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy workspace files
+COPY Cargo.toml Cargo.lock ./
+COPY shared/ shared/
+COPY crates/ crates/
+COPY microservices/ microservices/
+
+# Build the service
+RUN cargo build --release -p dify-orchestrator
+
+# ==================== Runtime Stage ====================
+FROM debian:bookworm-slim AS runtime
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -r -s /bin/false brivas
+
+# Copy binary from builder
+COPY --from=builder /app/target/release/dify-orchestrator /usr/local/bin/dify-orchestrator
+
+# Security: Run as non-root
+USER brivas
+
+# Environment variables
+ENV RUST_LOG=info
+ENV HTTP_BIND=0.0.0.0:8080
+ENV LUMADB_URL=postgres://brivas:password@lumadb:5432/brivas
+ENV DIFY_BASE_URL=https://api.dify.ai/v1
+# DIFY_API_KEY should be provided at runtime
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD wget -q --spider http://localhost:8080/health || exit 1
+
+# Expose ports
+EXPOSE 8080
+
+ENTRYPOINT ["/usr/local/bin/dify-orchestrator"]
