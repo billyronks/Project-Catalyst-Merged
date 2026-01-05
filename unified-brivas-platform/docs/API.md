@@ -333,3 +333,255 @@ Content-Type: application/json
 | Bulk SMS | 10/min |
 | GraphQL | 1000/min |
 | REST | 500/min |
+
+---
+
+## Hasura Bridge - Schema Auto-Discovery (Port 8085)
+
+### Get Full Schema
+```http
+GET /v1/schema
+```
+
+**Response:**
+```json
+{
+  "tables": ["accounts", "sms_history", "campaigns", ...],
+  "endpoints": [
+    {"path": "/v1/rest/accounts", "methods": ["GET", "POST"]},
+    {"path": "/v1/rest/accounts/:id", "methods": ["GET", "PUT", "DELETE"]}
+  ]
+}
+```
+
+### List Tables
+```http
+GET /v1/schema/tables
+```
+
+### Describe Table
+```http
+GET /v1/schema/tables/:table
+```
+
+### Auto-Generated REST Endpoints
+```http
+GET    /v1/rest/:table          # List records
+POST   /v1/rest/:table          # Create record
+GET    /v1/rest/:table/:id      # Get by ID
+PUT    /v1/rest/:table/:id      # Update by ID
+DELETE /v1/rest/:table/:id      # Delete by ID
+```
+
+---
+
+## AIOps Engine - Autonomous IT Operations (Port 8087)
+
+### Get Active Incidents
+```http
+GET /api/v1/incidents
+```
+
+### Trigger Manual Detection
+```http
+POST /api/v1/detect
+```
+
+### Execute Playbook
+```http
+POST /api/v1/playbooks/:playbook_id/execute
+Content-Type: application/json
+
+{
+  "parameters": {
+    "service": "smsc",
+    "action": "restart"
+  }
+}
+```
+
+### Get Service Health
+```http
+GET /api/v1/health/services
+```
+
+**Response:**
+```json
+{
+  "services": [
+    {"name": "smsc", "status": "healthy", "uptime": "99.99%"},
+    {"name": "billing", "status": "healthy", "uptime": "99.95%"}
+  ]
+}
+```
+
+---
+
+## GitOps Controller (Port 8088)
+
+### Get Sync Status
+```http
+GET /api/v1/sync/status
+```
+
+### Trigger Manual Sync
+```http
+POST /api/v1/sync/trigger
+```
+
+### List Applications
+```http
+GET /api/v1/applications
+```
+
+### Sync Specific Application
+```http
+POST /api/v1/applications/:name/sync
+```
+
+### Check Drift
+```http
+POST /api/v1/drift/check
+```
+
+**Response:**
+```json
+{
+  "applications": [
+    {"name": "smsc", "synced": true, "drift_detected": false},
+    {"name": "billing", "synced": true, "drift_detected": true}
+  ]
+}
+```
+
+---
+
+## Dify Orchestrator - AI Workflows & Agents (Port 8089)
+
+### List Agents
+```http
+GET /api/v1/agents
+```
+
+**Response:**
+```json
+{
+  "agents": [
+    {"id": "customer_support", "name": "Customer Support Agent"},
+    {"id": "aiops_analyst", "name": "AIOps Incident Analyst"},
+    {"id": "developer_assistant", "name": "Developer API Assistant"}
+  ]
+}
+```
+
+### Chat with Agent
+```http
+POST /api/v1/agents/:id/chat
+Content-Type: application/json
+
+{
+  "message": "What is my current account balance?",
+  "conversation_id": "conv_abc123"
+}
+```
+
+### List Workflows
+```http
+GET /api/v1/workflows
+```
+
+### Run Workflow
+```http
+POST /api/v1/workflows/:id/run
+Content-Type: application/json
+
+{
+  "inputs": {
+    "description": "Create a promotional SMS campaign for Black Friday",
+    "target_audience": "premium_users",
+    "channel": "sms"
+  }
+}
+```
+
+### AI Campaign Builder
+```http
+POST /api/v1/campaign-builder
+Content-Type: application/json
+
+{
+  "description": "Send a holiday greeting to all customers",
+  "target_audience": "all_users",
+  "channel": "sms",
+  "budget": 500.00
+}
+```
+
+### Multi-Channel Support
+```http
+POST /api/v1/support
+Content-Type: application/json
+
+{
+  "message": "I need help with my billing",
+  "channel": "sms",
+  "user_id": "user_123"
+}
+```
+
+### AIOps Incident Analysis
+```http
+POST /api/v1/aiops/analyze
+Content-Type: application/json
+
+{
+  "incident_id": "inc_001",
+  "service": "smsc",
+  "error_message": "Connection timeout",
+  "metrics": {"latency_ms": 5000}
+}
+```
+
+---
+
+## MCP Gateway - Enhanced Tools (Port 8086)
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `brivas_diagnose_issue` | Analyze metrics/logs for issue diagnosis |
+| `brivas_auto_remediate` | Trigger automatic remediation |
+| `brivas_get_service_health` | Get health status for services |
+| `brivas_list_tables` | List all database tables |
+| `brivas_describe_table` | Get detailed table schema |
+| `brivas_trigger_playbook` | Execute remediation playbook |
+| `brivas_dify_chat` | Chat with Dify AI agent |
+| `brivas_dify_workflow` | Execute Dify AI workflow |
+| `brivas_dify_knowledge` | Search RAG knowledge base |
+| `brivas_ai_campaign` | Create AI-powered campaign |
+
+### Example: Diagnose Issue
+```http
+POST /mcp/tools/brivas_diagnose_issue/execute
+Content-Type: application/json
+
+{
+  "service": "smsc",
+  "symptom": "high latency",
+  "timeframe": "15m"
+}
+```
+
+### Example: AI Campaign via MCP
+```http
+POST /mcp/tools/brivas_ai_campaign/execute
+Content-Type: application/json
+
+{
+  "description": "Announce our new VoIP service launch",
+  "channel": "rcs",
+  "budget": 1000
+}
+```
+
