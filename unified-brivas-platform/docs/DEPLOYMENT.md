@@ -32,6 +32,11 @@ curl http://localhost:8080/health
 | Voice Service | 8082 | Voice/Flash calls |
 | Billing Service | 8083 | Billing engine |
 | AI Service | 8084 | LLM integration |
+| Hasura Bridge | 8085 | GraphQL/REST auto-discovery |
+| MCP Gateway | 8086 | Model Context Protocol server |
+| AIOps Engine | 8087 | Autonomous IT operations |
+| GitOps Controller | 8088 | Git-based configuration |
+| Dify Orchestrator | 8089 | Dify AI workflows/agents |
 | Customer Web | 3000 | Next.js frontend |
 | Admin Dashboard | 3001 | Admin UI |
 | Nginx | 80, 443 | Reverse proxy |
@@ -41,10 +46,21 @@ curl http://localhost:8080/health
 Create `.env` file:
 
 ```bash
+# Database
 LUMADB_PASSWORD=your_secure_password
+
+# AI Provider Keys
 GEMINI_API_KEY=your_gemini_key
 OPENAI_API_KEY=your_openai_key
 ANTHROPIC_API_KEY=your_anthropic_key
+
+# Dify AI Integration
+DIFY_API_KEY=your_dify_api_key
+DIFY_BASE_URL=https://api.dify.ai/v1
+
+# GitOps (optional)
+GITOPS_REPO_URL=https://github.com/your-org/platform-config.git
+GITOPS_BRANCH=main
 ```
 
 ---

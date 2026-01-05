@@ -156,3 +156,98 @@ unified-brivas-platform/
 **Negative:**
 - Larger repo size
 - Need for careful access controls
+
+---
+
+# ADR-006: AIOps for Autonomous IT Operations
+
+## Status
+Accepted
+
+## Context
+Manual incident response was slow and inconsistent:
+- SMPP bind disconnects required manual intervention
+- No automated anomaly detection
+- Incident remediation depended on on-call engineers
+
+## Decision
+Implement autonomous AIOps engine with:
+- Anomaly detection (SMPP, latency, resource usage)
+- YAML-based remediation playbooks
+- Integration with metrics pipeline
+- Closed-loop auto-remediation
+
+## Consequences
+
+**Positive:**
+- Sub-minute incident response
+- Consistent remediation procedures
+- Reduced on-call burden
+- Continuous learning from past incidents
+
+**Negative:**
+- Risk of automated actions causing issues
+- Playbook maintenance overhead
+
+---
+
+# ADR-007: GitOps for Configuration Management
+
+## Status
+Accepted
+
+## Context
+Configuration changes were applied manually, leading to:
+- Drift between environments
+- No audit trail
+- Rollback difficulties
+
+## Decision
+Implement ArgoCD-compatible GitOps controller:
+- Git as single source of truth
+- Hash-based drift detection
+- Auto-reconciliation on drift
+- Integration with AIOps for change notifications
+
+## Consequences
+
+**Positive:**
+- Full audit trail in Git history
+- Declarative configuration
+- Easy rollback via git revert
+- Environment consistency
+
+**Negative:**
+- Git repository management overhead
+- Merge conflicts possible
+
+---
+
+# ADR-008: Dify AI Platform Integration
+
+## Status
+Accepted
+
+## Context
+Building custom AI workflows and agents from scratch is time-consuming and lacks the sophisticated orchestration capabilities of dedicated LLMOps platforms.
+
+## Decision
+Integrate Dify AI platform for:
+- Pre-built AI agents (customer support, AIOps analyst)
+- Visual workflow builder for automation
+- RAG knowledge base from platform documentation
+- Custom Brivas tools exposed to Dify
+
+## Consequences
+
+**Positive:**
+- Rapid AI feature deployment
+- Non-technical users can build workflows
+- Enterprise-grade LLM orchestration
+- Unified access via MCP gateway
+
+**Negative:**
+- External platform dependency
+- API key management required
+- Data privacy considerations for RAG
+
