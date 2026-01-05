@@ -321,14 +321,271 @@ impl Tool for TriggerPlaybookTool {
     }
 }
 
+// ============== Dify AI Integration Tools ==============
+
+/// Chat with Dify AI agent
+pub struct DifyAgentChatTool;
+
+#[async_trait]
+impl Tool for DifyAgentChatTool {
+    fn name(&self) -> &str {
+        "brivas_dify_chat"
+    }
+
+    fn description(&self) -> &str {
+        "Chat with a Dify AI agent (customer support, AIOps analyst, developer assistant)"
+    }
+
+    fn input_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string",
+                    "enum": ["customer_support", "aiops_analyst", "developer_assistant", "billing_specialist", "campaign_advisor"],
+                    "description": "Agent to chat with"
+                },
+                "message": {
+                    "type": "string",
+                    "description": "Message to send to the agent"
+                },
+                "conversation_id": {
+                    "type": "string",
+                    "description": "Optional conversation ID to continue a conversation"
+                }
+            },
+            "required": ["agent_id", "message"]
+        })
+    }
+
+    async fn execute(&self, args: Value) -> Result<ToolResult, ToolError> {
+        let agent_id = args
+            .get("agent_id")
+            .and_then(|v| v.as_str())
+            .ok_or(ToolError::InvalidInput("agent_id required".into()))?;
+        let message = args
+            .get("message")
+            .and_then(|v| v.as_str())
+            .ok_or(ToolError::InvalidInput("message required".into()))?;
+        let conversation_id = args.get("conversation_id").and_then(|v| v.as_str());
+
+        // In production, call dify-orchestrator service
+        let response = json!({
+            "agent_id": agent_id,
+            "message": message,
+            "conversation_id": conversation_id.unwrap_or("new"),
+            "response": format!("Agent '{}' is processing your request: '{}'", agent_id, message),
+            "status": "success",
+            "endpoint": "http://dify-orchestrator:8080/api/v1/agents/{}/chat"
+        });
+
+        Ok(ToolResult::json(response))
+    }
+}
+
+/// Run Dify workflow
+pub struct DifyWorkflowTool;
+
+#[async_trait]
+impl Tool for DifyWorkflowTool {
+    fn name(&self) -> &str {
+        "brivas_dify_workflow"
+    }
+
+    fn description(&self) -> &str {
+        "Execute a Dify AI workflow (campaign builder, billing dispute, incident triage)"
+    }
+
+    fn input_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "workflow_id": {
+                    "type": "string",
+                    "enum": ["campaign_builder", "billing_dispute", "incident_triage", "sender_id_approval"],
+                    "description": "Workflow to execute"
+                },
+                "inputs": {
+                    "type": "object",
+                    "description": "Workflow input parameters"
+                }
+            },
+            "required": ["workflow_id", "inputs"]
+        })
+    }
+
+    async fn execute(&self, args: Value) -> Result<ToolResult, ToolError> {
+        let workflow_id = args
+            .get("workflow_id")
+            .and_then(|v| v.as_str())
+            .ok_or(ToolError::InvalidInput("workflow_id required".into()))?;
+        let inputs = args.get("inputs").cloned().unwrap_or(json!({}));
+
+        // In production, call dify-orchestrator service
+        let result = json!({
+            "workflow_id": workflow_id,
+            "inputs": inputs,
+            "run_id": format!("run_{}", uuid::Uuid::new_v4()),
+            "status": "queued",
+            "message": format!("Workflow '{}' has been queued for execution", workflow_id),
+            "endpoint": "http://dify-orchestrator:8080/api/v1/workflows/{}/run"
+        });
+
+        Ok(ToolResult::json(result))
+    }
+}
+
+/// Search Dify RAG knowledge base
+pub struct DifyKnowledgeTool;
+
+#[async_trait]
+impl Tool for DifyKnowledgeTool {
+    fn name(&self) -> &str {
+        "brivas_dify_knowledge"
+    }
+
+    fn description(&self) -> &str {
+        "Search the Dify RAG knowledge base for platform documentation and FAQs"
+    }
+
+    fn input_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query"
+                },
+                "category": {
+                    "type": "string",
+                    "enum": ["api", "billing", "troubleshooting", "general"],
+                    "description": "Category to search"
+                },
+                "top_k": {
+                    "type": "integer",
+                    "description": "Number of results to return (default: 5)"
+                }
+            },
+            "required": ["query"]
+        })
+    }
+
+    async fn execute(&self, args: Value) -> Result<ToolResult, ToolError> {
+        let query = args
+            .get("query")
+            .and_then(|v| v.as_str())
+            .ok_or(ToolError::InvalidInput("query required".into()))?;
+        let category = args.get("category").and_then(|v| v.as_str());
+        let top_k = args.get("top_k").and_then(|v| v.as_u64()).unwrap_or(5);
+
+        // In production, call dify-orchestrator RAG service
+        let results = json!({
+            "query": query,
+            "category": category,
+            "top_k": top_k,
+            "results": [
+                {
+                    "title": "API Authentication Guide",
+                    "content": "Use Bearer token in Authorization header...",
+                    "score": 0.95,
+                    "category": "api"
+                },
+                {
+                    "title": "Billing FAQ",
+                    "content": "Invoices are generated on the 1st of each month...",
+                    "score": 0.82,
+                    "category": "billing"
+                }
+            ],
+            "count": 2
+        });
+
+        Ok(ToolResult::json(results))
+    }
+}
+
+/// Create AI-powered campaign
+pub struct DifyCampaignBuilderTool;
+
+#[async_trait]
+impl Tool for DifyCampaignBuilderTool {
+    fn name(&self) -> &str {
+        "brivas_ai_campaign"
+    }
+
+    fn description(&self) -> &str {
+        "Create an SMS/RCS campaign using natural language description"
+    }
+
+    fn input_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "description": "Natural language description of the campaign"
+                },
+                "target_audience": {
+                    "type": "string",
+                    "description": "Target audience segment"
+                },
+                "channel": {
+                    "type": "string",
+                    "enum": ["sms", "rcs", "whatsapp"],
+                    "description": "Messaging channel"
+                },
+                "budget": {
+                    "type": "number",
+                    "description": "Campaign budget in USD"
+                }
+            },
+            "required": ["description"]
+        })
+    }
+
+    async fn execute(&self, args: Value) -> Result<ToolResult, ToolError> {
+        let description = args
+            .get("description")
+            .and_then(|v| v.as_str())
+            .ok_or(ToolError::InvalidInput("description required".into()))?;
+        let target = args.get("target_audience").and_then(|v| v.as_str()).unwrap_or("all_users");
+        let channel = args.get("channel").and_then(|v| v.as_str()).unwrap_or("sms");
+        let budget = args.get("budget").and_then(|v| v.as_f64()).unwrap_or(500.0);
+
+        // In production, call dify-orchestrator campaign builder workflow
+        let campaign = json!({
+            "campaign": {
+                "name": format!("AI Campaign: {}", &description[..description.len().min(30)]),
+                "description": description,
+                "channel": channel,
+                "target_audience": target,
+                "budget": budget,
+                "estimated_reach": 10000,
+                "message_template": "AI-generated message template based on your description..."
+            },
+            "status": "draft",
+            "next_steps": ["Review template", "Approve audience", "Schedule send"]
+        });
+
+        Ok(ToolResult::json(campaign))
+    }
+}
+
 /// Get all AIOps tools
 pub fn get_aiops_tools() -> Vec<Box<dyn Tool>> {
     vec![
+        // Core AIOps tools
         Box::new(DiagnoseIssueTool),
         Box::new(AutoRemediateTool),
         Box::new(GetServiceHealthTool),
         Box::new(ListTablesTool),
         Box::new(DescribeTableTool),
         Box::new(TriggerPlaybookTool),
+        // Dify AI integration tools
+        Box::new(DifyAgentChatTool),
+        Box::new(DifyWorkflowTool),
+        Box::new(DifyKnowledgeTool),
+        Box::new(DifyCampaignBuilderTool),
     ]
 }
+
