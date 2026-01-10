@@ -565,6 +565,168 @@ services:
       timeout: 5s
       retries: 3
 
+  # ===========================================
+  # VOICE SIGNALING (PROFILE: signaling)
+  # ===========================================
+
+  kamailio:
+    image: kamailio/kamailio:5.7
+    container_name: brivas-kamailio-sbc
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+    environment:
+      DB_HOST: lumadb
+      DB_PORT: 5432
+      DB_USER: brivas
+      DB_PASS: ${LUMADB_PASSWORD:-brivas_secret}
+    volumes:
+      - ./infrastructure/voice/kamailio/kamailio.cfg:/etc/kamailio/kamailio.cfg:ro
+    depends_on:
+      - lumadb
+      - rtpengine
+    networks:
+      - brivas-network
+    profiles:
+      - signaling
+
+  opensips:
+    image: opensips/opensips:3.4
+    container_name: brivas-opensips
+    ports:
+      - "5080:5080/udp"
+      - "5080:5080/tcp"
+      - "5066:5066/tcp" # WebSocket
+      - "5067:5067/tcp" # Secure WebSocket
+    environment:
+      DB_HOST: lumadb
+      DB_PORT: 5432
+      DB_USER: brivas
+      DB_PASS: ${LUMADB_PASSWORD:-brivas_secret}
+    volumes:
+      - ./infrastructure/voice/opensips/opensips.cfg:/etc/opensips/opensips.cfg:ro
+    depends_on:
+      - lumadb
+      - rtpengine
+    networks:
+      - brivas-network
+    profiles:
+      - signaling
+
+  rtpengine:
+    image: drachtio/rtpengine:latest
+    container_name: brivas-rtpengine
+    ports:
+      - "22222:22222/udp"
+      - "30000-30100:30000-30100/udp"
+    environment:
+      INTERFACE: eth0
+      PORT_MIN: 30000
+      PORT_MAX: 30100
+    volumes:
+      - ./infrastructure/voice/rtpengine/rtpengine.conf:/etc/rtpengine/rtpengine.conf:ro
+    networks:
+      - brivas-network
+    profiles:
+      - signaling
+
+  coturn:
+    image: coturn/coturn:4.6
+    container_name: brivas-coturn
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "5349:5349/tcp"
+      - "49152-49200:49152-49200/udp"
+    volumes:
+      - ./infrastructure/voice/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    networks:
+      - brivas-network
+    profiles:
+      - signaling
+
+  # ===========================================
+  # OBSERVABILITY (PROFILE: observability)
+  # ===========================================
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.92.0
+    container_name: brivas-otel-collector
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    ports:
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+      - "8889:8889" # Prometheus exporter
+    volumes:
+      - ./infrastructure/observability/otel-collector.yaml:/etc/otel-collector-config.yaml:ro
+    networks:
+      - brivas-network
+    profiles:
+      - observability
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.53
+    container_name: brivas-jaeger
+    ports:
+      - "16686:16686" # UI
+      - "14268:14268" # Collector HTTP
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    networks:
+      - brivas-network
+    profiles:
+      - observability
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: brivas-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./infrastructure/observability/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    networks:
+      - brivas-network
+    profiles:
+      - observability
+
+  homer-app:
+    image: sipcapture/homer-app:latest
+    container_name: brivas-homer
+    ports:
+      - "9080:9080"
+    environment:
+      DB_HOST: lumadb
+      DB_PORT: 5432
+      DB_USER: brivas
+      DB_PASS: ${LUMADB_PASSWORD:-brivas_secret}
+    depends_on:
+      - lumadb
+    networks:
+      - brivas-network
+    profiles:
+      - observability
+
+  prometheus:
+    image: prom/prometheus:v2.49.0
+    container_name: brivas-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./infrastructure/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      - brivas-network
+    profiles:
+      - observability
+
 volumes:
   lumadb_data:
     driver: local
@@ -579,6 +741,10 @@ volumes:
   nats-data:
     driver: local
   consul-data:
+    driver: local
+  grafana-data:
+    driver: local
+  prometheus-data:
     driver: local
 
 networks:

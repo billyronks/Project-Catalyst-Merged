@@ -1,0 +1,72 @@
+# Homer SIP Tracing Configuration
+# Voice-Switch-IM Integration
+
+prometheus:
+  enabled: true
+  service:
+    type: ClusterIP
+    port: 9090
+
+loki:
+  enabled: false
+
+heplify-server:
+  enabled: true
+  config:
+    HEPAddr: "0.0.0.0:9060"
+    HEPTLSAddr: ""
+    HEPWSAddr: ""
+    ESAddr: ""
+    LokiURL: ""
+    LokiBulk: 200
+    LokiTimer: 2
+    LokiBuffer: 100000
+    LokiHEPFilter: [1,5,100]
+    PromAddr: "0.0.0.0:9096"
+    PromTargetIP: ""
+    PromTargetName: ""
+    DBShema: "homer7"
+    DBDriver: "postgres"
+    DBAddr: "lumadb:5432"
+    DBUser: "brivas"
+    DBPass: "password"
+    DBDataTable: "homer_data"
+    DBConfTable: "homer_config"
+    DBTableSpace: ""
+    DBBulk: 200
+    DBTimer: 2
+    DBBuffer: 400000
+    DBWorker: 8
+    DBRotate: true
+    DBPartLog: "2h"
+    DBPartSip: "1h"
+    DBPartQos: "6h"
+    DBDropDays: 14
+    DBDropDaysCall: 0
+    DBDropDaysRegister: 0
+    DBDropDaysDefault: 0
+    DBDropOnStart: false
+    Dedup: false
+    DiscardMethod: ["OPTIONS"]
+    AlegIDs: ["X-CID", "P-Charging-Vector"]
+    CustomHeader: ["X-Session-Id"]
+    SIPHeader: ["callid", "method", "ruri_user", "from_user", "to_user", "via_branch"]
+    LogDbg: "hep,sql"
+    LogLvl: "info"
+    LogStd: false
+    LogSys: false
+    Config: ""
+    ConfigHTTPAddr: ""
+
+homer-app:
+  enabled: true
+  ingress:
+    enabled: false
+  service:
+    type: ClusterIP
+    port: 9080
+  config:
+    DB_HOST: lumadb
+    DB_PORT: "5432"
+    DB_USER: brivas
+    DB_PASS: password
