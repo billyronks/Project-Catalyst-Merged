@@ -1,0 +1,24 @@
+[package]
+name = "brivas-temporal-sdk"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Temporal workflow SDK wrapper for Brivas platform"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+
+# Note: Temporal Rust SDK is still in development
+# Using stubs until official crates are published
+# See: https://github.com/temporalio/sdk-rust
+
+[dev-dependencies]
+tokio-test = "0.4"

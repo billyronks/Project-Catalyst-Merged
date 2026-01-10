@@ -12,6 +12,8 @@ members = [
     "shared/brivas-mcp-sdk",
     "shared/brivas-stir-shaken-sdk",
     "shared/brivas-video-sdk",
+    "shared/brivas-kdb-sdk",
+    "shared/brivas-temporal-sdk",
     
     # SIGTRAN Protocol Stack
     "crates/brivas-sigtran",
@@ -24,6 +26,7 @@ members = [
     "microservices/ussd-gateway",
     "microservices/unified-messaging",
     "microservices/voice-video-calling",
+    "microservices/voice-switch",
     
     # Microservices - Messaging
     "microservices/instant-messaging",
@@ -46,6 +49,7 @@ members = [
     "microservices/aiops-engine",
     "microservices/gitops-controller",
     "microservices/dify-orchestrator",
+    "microservices/temporal-worker",
 ]
 
 [workspace.package]
@@ -53,7 +57,7 @@ version = "1.0.0"
 edition = "2021"
 rust-version = "1.75"
 license = "Proprietary"
-repository = "https://github.com/billyronks/unified-brivas-platform"
+repository = "https://github.com/billyronks/Project-Catalyst-Merged"
 
 [workspace.dependencies]
 # Async runtime
@@ -107,8 +111,8 @@ sha2 = "0.10"
 rand = "0.8"
 jsonwebtoken = "9.2"
 
-# HTTP client
-reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+# HTTP client (0.12 fixes rustls-pemfile warning)
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 
 # Database (PostgreSQL wire protocol for LumaDB)
 tokio-postgres = "0.7"
@@ -122,3 +126,7 @@ brivas-telemetry = { path = "shared/brivas-telemetry" }
 brivas-im-sdk = { path = "shared/brivas-im-sdk" }
 brivas-rcs-sdk = { path = "shared/brivas-rcs-sdk" }
 brivas-mcp-sdk = { path = "shared/brivas-mcp-sdk" }
+brivas-stir-shaken-sdk = { path = "shared/brivas-stir-shaken-sdk" }
+brivas-video-sdk = { path = "shared/brivas-video-sdk" }
+brivas-kdb-sdk = { path = "shared/brivas-kdb-sdk" }
+brivas-temporal-sdk = { path = "shared/brivas-temporal-sdk" }

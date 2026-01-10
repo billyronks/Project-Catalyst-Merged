@@ -1,0 +1,34 @@
+# Temporal Worker Microservice Dockerfile
+FROM rust:1.75 AS builder
+
+WORKDIR /app
+
+# Copy workspace files
+COPY Cargo.toml Cargo.lock ./
+COPY shared ./shared
+COPY microservices/temporal-worker ./microservices/temporal-worker
+
+# Build the temporal-worker binary
+RUN cargo build --release --package temporal-worker
+
+# Runtime stage
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libpq5 \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/target/release/temporal-worker /usr/local/bin/temporal-worker
+
+ENV RUST_LOG=info
+ENV HOST=0.0.0.0
+ENV PORT=8096
+
+EXPOSE 8096
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD wget -q --spider http://localhost:8096/health || exit 1
+
+CMD ["temporal-worker"]

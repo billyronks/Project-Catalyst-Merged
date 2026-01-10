@@ -1,0 +1,34 @@
+[package]
+name = "temporal-worker"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+# Workspace dependencies
+tokio = { workspace = true }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Internal crates
+brivas-core = { workspace = true }
+brivas-lumadb = { workspace = true }
+brivas-telemetry = { workspace = true }
+
+# HTTP client
+reqwest = { workspace = true }
+
+# Random for mock data
+rand = { workspace = true }
+
+[dev-dependencies]
+tokio-test = "0.4"

@@ -328,10 +328,257 @@ services:
     networks:
       - brivas-network
 
+  # ===========================================
+  # VOICE SWITCH PLATFORM (NEW)
+  # ===========================================
+
+  # Voice Switch - Class 4/5 Softswitch API
+  voice-switch:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.voice-switch
+    container_name: brivas-voice-switch
+    ports:
+      - "8095:8095"
+    environment:
+      RUST_LOG: info
+      HOST: 0.0.0.0
+      PORT: 8095
+      LUMADB_URL: postgres://brivas:${LUMADB_PASSWORD:-brivas_secret}@lumadb:5432/brivas
+      KDB_HOST: kdb-gateway
+      KDB_PORT: 5010
+    depends_on:
+      lumadb:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8095/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - brivas-network
+
+  # Temporal Worker - Workflow Orchestration
+  temporal-worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.temporal-worker
+    container_name: brivas-temporal-worker
+    ports:
+      - "8096:8096"
+    environment:
+      RUST_LOG: info
+      HOST: 0.0.0.0
+      PORT: 8096
+      TEMPORAL_HOST: temporal
+      TEMPORAL_PORT: 7233
+      TEMPORAL_NAMESPACE: brivas
+      TEMPORAL_TASK_QUEUE: brivas-workflows
+      LUMADB_URL: postgres://brivas:${LUMADB_PASSWORD:-brivas_secret}@lumadb:5432/brivas
+    depends_on:
+      - temporal
+      - lumadb
+    networks:
+      - brivas-network
+
+  # ===========================================
+  # TEMPORAL WORKFLOW ENGINE
+  # ===========================================
+
+  temporal:
+    image: temporalio/auto-setup:1.22.4
+    container_name: brivas-temporal
+    ports:
+      - "7233:7233"
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=brivas
+      - POSTGRES_PWD=${LUMADB_PASSWORD:-brivas_secret}
+      - POSTGRES_SEEDS=lumadb
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development.yaml
+    depends_on:
+      lumadb:
+        condition: service_healthy
+    networks:
+      - brivas-network
+
+  temporal-ui:
+    image: temporalio/ui:2.21.3
+    container_name: brivas-temporal-ui
+    ports:
+      - "8088:8080"
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+    depends_on:
+      - temporal
+    networks:
+      - brivas-network
+
+  # ===========================================
+  # QUESTDB REAL-TIME ANALYTICS (replaces kdb+)
+  # ===========================================
+  # QuestDB: 11.4M rows/sec ingestion, sub-2ms query latency
+  # 100% open-source Apache 2.0, no license required
+
+  questdb:
+    image: questdb/questdb:8.0.3
+    container_name: brivas-questdb
+    ports:
+      - "9000:9000" # REST API + Web Console
+      - "8812:8812" # PostgreSQL wire protocol
+      - "9009:9009" # InfluxDB Line Protocol (ILP) ingestion
+    environment:
+      QDB_TELEMETRY_ENABLED: "false"
+      QDB_HTTP_MIN_ENABLED: "true"
+      QDB_PG_ENABLED: "true"
+      QDB_LINE_TCP_ENABLED: "true"
+    volumes:
+      - questdb-data:/var/lib/questdb
+      - ./infrastructure/questdb/init.sql:/opt/questdb/conf/init.sql:ro
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:9000" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - brivas-network
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '4'
+
+  # ===========================================
+  # CONSUL SERVICE DISCOVERY
+  # ===========================================
+  # Enables cross-cluster microservice discovery and health checks
+
+  consul:
+    image: hashicorp/consul:1.18
+    container_name: brivas-consul
+    ports:
+      - "8500:8500" # HTTP API
+      - "8600:8600/udp" # DNS
+    environment:
+      CONSUL_BIND_INTERFACE: eth0
+    command: agent -server -bootstrap-expect=1 -ui -client=0.0.0.0
+    volumes:
+      - consul-data:/consul/data
+    healthcheck:
+      test: [ "CMD", "consul", "members" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - brivas-network
+    profiles:
+      - mesh
+
+  # ===========================================
+  # OLAP ANALYTICS (CLICKHOUSE)
+  # ===========================================
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.1
+    container_name: brivas-clickhouse
+    environment:
+      CLICKHOUSE_DB: brivas
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse_secret}
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    networks:
+      - brivas-network
+    healthcheck:
+      test: [ "CMD", "clickhouse-client", "--query", "SELECT 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '4'
+    profiles:
+      - analytics
+
+  # ===========================================
+  # HIGH-THROUGHPUT STREAMING (REDPANDA)
+  # ===========================================
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.1.1
+    container_name: brivas-redpanda
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --mode dev-container
+      - --smp 1
+      - --memory 512M
+    ports:
+      - "19092:19092"
+      - "18082:18082"
+      - "18081:18081"
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    networks:
+      - brivas-network
+    healthcheck:
+      test: [ "CMD", "rpk", "cluster", "health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    profiles:
+      - streaming
+
+  # ===========================================
+  # NATS MESSAGING
+  # ===========================================
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: brivas-nats
+    command:
+      - "--js"
+      - "--sd=/data"
+      - "--http_port=8222"
+      - "--name=brivas-nats"
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats-data:/data
+    networks:
+      - brivas-network
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8222/healthz" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
 volumes:
   lumadb_data:
     driver: local
   gitops_repos:
+    driver: local
+  questdb-data:
+    driver: local
+  clickhouse-data:
+    driver: local
+  redpanda-data:
+    driver: local
+  nats-data:
+    driver: local
+  consul-data:
     driver: local
 
 networks:
