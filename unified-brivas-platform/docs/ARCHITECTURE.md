@@ -1,231 +1,349 @@
-# Unified Brivas Platform - Complete Architecture Reference
+# Unified Brivas Platform - Complete Architecture
 
-> **Version**: 1.0.0 | **Last Updated**: January 2026  
-> **Target Performance**: 10M+ TPS | **Latency**: sub-millisecond p99
-
----
-
-## Executive Summary
-
-The Unified Brivas Platform is a carrier-grade telecommunications platform integrating Class 4/5 voice switching, messaging (SMS/USSD/RCS/IM), workflow orchestration, and real-time analytics into a unified microservices architecture.
+> **Version**: 2.0.0 | January 2026  
+> **Performance Target**: 1000x - Carrier-Grade Telecommunications
 
 ---
 
-## System Architecture Overview
+## Platform Architecture Overview
 
 ```mermaid
 flowchart TB
-    subgraph Internet["Internet / PSTN"]
-        USERS[("👤 End Users")]
-        CARRIERS[("📡 Carriers")]
-        PSTN[("☎️ PSTN")]
+    subgraph Clients["👥 Clients & Integrations"]
+        WebApp["🌐 Web App"]
+        MobileApp["📱 Mobile App"]
+        SIPPhone["📞 SIP Phones"]
+        SMPP["📨 SMPP Clients"]
+        API["🔌 REST/GraphQL API"]
+        WebRTC["🎥 WebRTC Browsers"]
     end
 
-    subgraph Edge["Edge Layer (100+ Gbps)"]
-        XDP["🔥 XDP/eBPF Load Balancer<br/>Kernel-bypass, 1μs latency"]
-        NGINX["Nginx Reverse Proxy"]
+    subgraph Gateway["🚪 API Gateway Layer"]
+        APIGateway["API Gateway<br/>(Axum + GraphQL)"]
+        MCPGateway["MCP Gateway<br/>(AI Protocols)"]
+        HasuraBridge["Hasura Bridge<br/>(GraphQL Federation)"]
     end
 
-    subgraph Gateway["API Gateway Layer"]
-        APIGW["🌐 API Gateway (Rust/Axum)<br/>REST, GraphQL, WebSocket, MCP"]
-        HASURA["Hasura GraphQL Engine"]
+    subgraph Voice["📞 Voice Services"]
+        VoiceSwitch["Voice Switch<br/>(LCR Engine)"]
+        Kamailio["Kamailio SBC<br/>(Class 4)"]
+        OpenSIPS["OpenSIPS<br/>(Class 5 + WebRTC)"]
+        FreeSWITCH["FreeSWITCH<br/>(IVR/Conference)"]
+        RTPEngine["RTPEngine<br/>(Media Proxy)"]
+        STIRShaken["STIR/SHAKEN<br/>(Call Auth)"]
     end
 
-    subgraph Signaling["SIP Signaling Tier"]
-        direction TB
-        KAM["📞 Kamailio (Class 4)<br/>LCR, Wholesale, Carrier Auth"]
-        OSIPS["📱 OpenSIPS (Class 5)<br/>Retail, PBX, WebRTC"]
-        FS["🎵 FreeSWITCH<br/>IVR, Voicemail, Conferencing"]
-        RTP["🎬 RTPEngine<br/>Media Transcoding, SRTP"]
-        COTURN["🔄 Coturn<br/>STUN/TURN Server"]
+    subgraph Messaging["💬 Messaging Services"]
+        SMSC["SMSC<br/>(100K+ TPS)"]
+        UMH["Unified Messaging Hub<br/>(Multi-Channel)"]
+        RCS["RCS Messaging"]
+        IM["Instant Messaging"]
     end
 
-    subgraph Microservices["Rust Microservices"]
-        direction TB
-        VS["🔀 Voice Switch<br/>Carrier Mgmt, LCR, Analytics"]
-        TW["⚙️ Temporal Worker<br/>Workflow Orchestration"]
-        SMSC["📨 SMSC<br/>SMS Processing"]
-        USSD["📲 USSD Gateway<br/>Session Management"]
-        UMH["💬 Unified Messaging<br/>IM, RCS, Push"]
-        BILLING["💰 Billing Service<br/>Rating, CDR, Invoicing"]
-        STIR["🔐 STIR/SHAKEN<br/>Call Authentication"]
+    subgraph USSD["📟 USSD Services"]
+        USSDGateway["USSD Gateway<br/>(100K+ Sessions)"]
     end
 
-    subgraph Workflow["Temporal Orchestration"]
-        TEMPORAL["🔄 Temporal Server<br/>Durable Workflows"]
-        TEMPUI["📊 Temporal UI<br/>Workflow Monitoring"]
+    subgraph Billing["💰 Billing & Rating"]
+        BillingEngine["Billing Engine<br/>(1M+ CDRs/sec)"]
+        Rating["Real-time Rating"]
+        Balance["Balance Manager"]
     end
 
-    subgraph Analytics["Real-Time Analytics"]
-        QUEST["📈 QuestDB<br/>11.4M rows/sec, CDR Analytics"]
-        CH["📊 ClickHouse<br/>OLAP Warehouse"]
-        GRAFANA["📉 Grafana<br/>Dashboards"]
+    subgraph Orchestration["🔄 Workflow Orchestration"]
+        Temporal["Temporal Server"]
+        TemporalWorker["Temporal Workers"]
+        Workflows["Workflows<br/>(Provisioning, Fraud, Billing)"]
     end
 
-    subgraph Data["Data Layer"]
-        LUMA["🗄️ LumaDB<br/>Unified OLTP (PG, Redis, Kafka)"]
-        NATS["📭 NATS JetStream<br/>Cross-cluster Events"]
-        RP["📬 Redpanda<br/>Kafka-compat Streaming"]
+    subgraph Analytics["📊 Analytics & Observability"]
+        QuestDB["QuestDB<br/>(11.4M rows/sec)"]
+        ClickHouse["ClickHouse<br/>(OLAP)"]
+        Prometheus["Prometheus"]
+        Grafana["Grafana Dashboards"]
+        Homer["Homer SIP Tracing"]
+        Jaeger["Jaeger Tracing"]
     end
 
-    subgraph Discovery["Service Mesh"]
-        CONSUL["🔍 Consul<br/>Service Discovery"]
+    subgraph Security["🔒 Security"]
+        FraudEngine["ML Fraud Detection<br/>(IRSF, Wangiri)"]
+        CircuitBreaker["Circuit Breakers"]
     end
 
-    %% Connections
-    USERS --> XDP
-    CARRIERS --> XDP
-    PSTN --> KAM
+    subgraph Data["💾 Data Layer"]
+        LumaDB["LumaDB<br/>(PostgreSQL + Redis + Kafka)"]
+        NATS["NATS JetStream"]
+        Redpanda["Redpanda<br/>(Streaming)"]
+    end
 
-    XDP --> NGINX
-    XDP --> KAM
-    NGINX --> APIGW
-    
-    APIGW --> HASURA
-    APIGW --> VS
-    APIGW --> SMSC
-    APIGW --> USSD
-    
-    KAM --> RTP
-    KAM --> OSIPS
-    OSIPS --> FS
-    OSIPS --> COTURN
-    FS --> RTP
-    
-    VS --> TW
-    VS --> QUEST
-    VS --> LUMA
-    TW --> TEMPORAL
-    TEMPORAL --> TEMPUI
-    
-    SMSC --> RP
-    UMH --> RP
-    BILLING --> LUMA
-    
-    RP --> CH
-    QUEST --> CH
-    CH --> GRAFANA
-    
-    VS --> CONSUL
-    TW --> CONSUL
-    SMSC --> CONSUL
+    subgraph Infrastructure["🏗️ Infrastructure"]
+        XDP["XDP/eBPF LB<br/>(100+ Gbps)"]
+        Consul["Consul<br/>(Service Discovery)"]
+        Coturn["Coturn<br/>(TURN/STUN)"]
+    end
+
+    %% Client Connections
+    WebApp --> APIGateway
+    MobileApp --> APIGateway
+    SIPPhone --> Kamailio
+    SMPP --> SMSC
+    API --> APIGateway
+    WebRTC --> OpenSIPS
+
+    %% Gateway to Services
+    APIGateway --> VoiceSwitch
+    APIGateway --> SMSC
+    APIGateway --> USSDGateway
+    APIGateway --> UMH
+    APIGateway --> BillingEngine
+    MCPGateway --> APIGateway
+    HasuraBridge --> LumaDB
+
+    %% Voice Flow
+    VoiceSwitch --> Kamailio
+    VoiceSwitch --> FraudEngine
+    VoiceSwitch --> CircuitBreaker
+    Kamailio --> OpenSIPS
+    Kamailio --> RTPEngine
+    OpenSIPS --> RTPEngine
+    OpenSIPS --> FreeSWITCH
+    OpenSIPS --> Coturn
+    VoiceSwitch --> STIRShaken
+
+    %% Messaging Flow
+    SMSC --> UMH
+    RCS --> UMH
+    IM --> UMH
+    UMH --> NATS
+
+    %% Billing Flow
+    VoiceSwitch --> BillingEngine
+    SMSC --> BillingEngine
+    USSDGateway --> BillingEngine
+    BillingEngine --> Rating
+    BillingEngine --> Balance
+    BillingEngine --> QuestDB
+
+    %% Orchestration
+    TemporalWorker --> Temporal
+    Workflows --> TemporalWorker
+    VoiceSwitch --> Workflows
+    BillingEngine --> Workflows
+
+    %% Analytics
+    VoiceSwitch --> QuestDB
+    SMSC --> QuestDB
+    BillingEngine --> ClickHouse
+    Prometheus --> Grafana
+    Kamailio --> Homer
+    OpenSIPS --> Homer
+
+    %% Data Connections
+    VoiceSwitch --> LumaDB
+    SMSC --> LumaDB
+    BillingEngine --> LumaDB
+    USSDGateway --> LumaDB
+    UMH --> Redpanda
+
+    %% Infrastructure
+    XDP --> VoiceSwitch
+    XDP --> SMSC
+    Consul -.-> VoiceSwitch
+    Consul -.-> SMSC
+    Consul -.-> USSDGateway
+
+    classDef gateway fill:#e1f5fe,stroke:#01579b
+    classDef voice fill:#fff3e0,stroke:#e65100
+    classDef messaging fill:#e8f5e9,stroke:#2e7d32
+    classDef data fill:#f3e5f5,stroke:#7b1fa2
+    classDef analytics fill:#fce4ec,stroke:#c2185b
+    classDef security fill:#ffebee,stroke:#c62828
+
+    class APIGateway,MCPGateway,HasuraBridge gateway
+    class VoiceSwitch,Kamailio,OpenSIPS,FreeSWITCH,RTPEngine,STIRShaken voice
+    class SMSC,UMH,RCS,IM messaging
+    class LumaDB,NATS,Redpanda data
+    class QuestDB,ClickHouse,Prometheus,Grafana,Homer,Jaeger analytics
+    class FraudEngine,CircuitBreaker security
 ```
 
 ---
 
-## Detailed Component Architecture
-
-### Voice Switch Microservice
+## Technology Stack
 
 ```mermaid
 flowchart LR
-    subgraph VoiceSwitch["Voice Switch (Rust/Axum)"]
-        direction TB
-        API["REST API<br/>:8095"]
-        
-        subgraph Core["Core Modules"]
-            CARRIER["Carrier Manager<br/>CRUD, Failover"]
-            LCR["LCR Engine<br/>5 Routing Modes"]
-            WEBRTC["WebRTC Manager<br/>SDP, ICE"]
-        end
-        
-        subgraph Analytics["Analytics"]
-            QUEST_C["QuestDB Client<br/>CDR Ingestion"]
-            CACHE["Carrier Cache<br/>DashMap TTL"]
-        end
+    subgraph Languages["💻 Languages"]
+        Rust["🦀 Rust<br/>(Primary)"]
+        Go["🐹 Go<br/>(Legacy)"]
+        Python["🐍 Python<br/>(ML)"]
+        TypeScript["📘 TypeScript<br/>(Frontend)"]
     end
-    
-    API --> CARRIER
-    API --> LCR
-    API --> WEBRTC
-    CARRIER --> QUEST_C
-    LCR --> CACHE
-    
-    QUEST_C --> QUESTDB[("QuestDB")]
-    CACHE --> LUMA[("LumaDB")]
+
+    subgraph Frameworks["📦 Frameworks"]
+        Axum["Axum<br/>(HTTP)"]
+        Tokio["Tokio<br/>(Async Runtime)"]
+        SeaORM["SeaORM<br/>(Database)"]
+    end
+
+    subgraph Databases["💾 Databases"]
+        LumaDB2["LumaDB<br/>(PostgreSQL Wire)"]
+        QuestDB2["QuestDB<br/>(Time-Series)"]
+        ClickHouse2["ClickHouse<br/>(OLAP)"]
+    end
+
+    subgraph Messaging2["📨 Messaging"]
+        NATS2["NATS JetStream"]
+        Redpanda2["Redpanda"]
+    end
+
+    subgraph Signaling["📡 Signaling"]
+        SIP["SIP/SDP"]
+        SMPP2["SMPP v3.4/5.0"]
+        WebRTC2["WebRTC"]
+        SS7["SS7/SIGTRAN"]
+    end
+
+    subgraph Observability2["📊 Observability"]
+        OpenTelemetry["OpenTelemetry"]
+        Prometheus2["Prometheus"]
+        Grafana2["Grafana"]
+        Jaeger2["Jaeger"]
+    end
+
+    Rust --> Axum
+    Rust --> Tokio
+    Axum --> LumaDB2
+    Axum --> QuestDB2
+    Tokio --> NATS2
 ```
 
-### LCR Routing Modes
+---
 
-```mermaid
-graph TB
-    subgraph LCR["Least Cost Routing Engine"]
-        INPUT["Destination Number"]
-        
-        INPUT --> MATCH["Prefix Matching"]
-        MATCH --> MODE{"Routing Mode?"}
-        
-        MODE -->|"LeastCost"| LC["Sort by Rate ↓"]
-        MODE -->|"Quality"| Q["Sort by ASR×(1-PDD) ↓"]
-        MODE -->|"Balanced"| B["Score = 0.5×ASR - 0.3×Rate - 0.2×PDD"]
-        MODE -->|"Priority"| P["Sort by Priority ↑"]
-        MODE -->|"RoundRobin"| RR["Rotate Index"]
-        
-        LC --> OUTPUT["Carrier List + Dial String"]
-        Q --> OUTPUT
-        B --> OUTPUT
-        P --> OUTPUT
-        RR --> OUTPUT
-    end
-```
+## Service Interaction Flow
 
-### Temporal Workflow Orchestration
+### Voice Call Flow
 
 ```mermaid
 sequenceDiagram
-    participant C as Client
-    participant API as API Gateway
-    participant TW as Temporal Worker
-    participant TS as Temporal Server
-    participant DB as LumaDB
-    participant AN as QuestDB
+    participant User as 📱 User
+    participant Kamailio as 🔀 Kamailio SBC
+    participant VoiceSwitch as 🎛️ Voice Switch
+    participant Fraud as 🛡️ Fraud Engine
+    participant LCR as 📊 LCR Engine
+    participant Carrier as 📞 Carrier
+    participant Billing as 💰 Billing
+    participant QuestDB as 📈 QuestDB
 
-    C->>API: POST /provision/service
-    API->>TS: StartWorkflow(ServiceProvisioning)
-    TS->>TW: Execute Activity: ValidateCustomer
-    TW->>DB: Query customer status
-    DB-->>TW: Customer valid
-    TW-->>TS: Activity complete
+    User->>Kamailio: SIP INVITE
+    Kamailio->>VoiceSwitch: Route Request
+    VoiceSwitch->>Fraud: Check Fraud Score
+    Fraud-->>VoiceSwitch: Score: 0.1 (Allow)
+    VoiceSwitch->>LCR: Get Best Route
+    LCR-->>VoiceSwitch: Carrier A (Cost: $0.01)
+    VoiceSwitch->>Kamailio: Route to Carrier
+    Kamailio->>Carrier: SIP INVITE
+    Carrier-->>Kamailio: 200 OK
+    Kamailio-->>User: 200 OK
     
-    TS->>TW: Execute Activity: AllocateResources
-    TW->>DB: Reserve DID/Trunk
-    DB-->>TW: Resources allocated
-    TW-->>TS: Activity complete
+    Note over User,Carrier: Call in Progress
     
-    TS->>TW: Execute Activity: ConfigureRouting
-    TW->>DB: Insert routing rules
-    TW->>AN: Log provisioning event
-    TW-->>TS: Activity complete
-    
-    TS-->>API: Workflow complete
-    API-->>C: Service provisioned
+    User->>Kamailio: BYE
+    Kamailio->>VoiceSwitch: Call Ended
+    VoiceSwitch->>Billing: Generate CDR
+    Billing->>QuestDB: Store Analytics
+    VoiceSwitch->>QuestDB: Store Call Metrics
 ```
 
-### Fraud Detection Pipeline
+### SMS Flow
 
 ```mermaid
-flowchart LR
-    subgraph Ingestion["Call Ingestion"]
-        SIP["SIP INVITE"] --> PROC["Signal Processor"]
-    end
+sequenceDiagram
+    participant App as 📱 Application
+    participant API as 🚪 API Gateway
+    participant SMSC as 📨 SMSC
+    participant Router as 🔀 Router
+    participant Carrier as 📡 Carrier
+    participant Analytics as 📊 Analytics
+
+    App->>API: POST /sms/send
+    API->>SMSC: Submit Message
+    SMSC->>Router: Route by Prefix
+    Router-->>SMSC: Best Route
+    SMSC->>Carrier: SMPP Submit
+    Carrier-->>SMSC: Message ID
+    SMSC->>Analytics: Record Metrics
+    SMSC-->>API: Accepted
+    API-->>App: 202 Accepted
     
-    subgraph Detection["Fraud Detection"]
-        PROC --> FE["Feature Extraction"]
-        FE --> ML["ML Inference<br/>XGBoost + Isolation Forest"]
-        ML --> SCORE["Risk Score"]
-    end
+    Note over Carrier,SMSC: Async Delivery
     
-    subgraph Action["Action"]
-        SCORE -->|">0.8"| BLOCK["❌ Block Call"]
-        SCORE -->|">0.5"| ALERT["⚠️ Raise Alert"]
-        SCORE -->|"<0.5"| PASS["✓ Allow Call"]
+    Carrier->>SMSC: Delivery Report
+    SMSC->>Analytics: Update Status
+```
+
+---
+
+## Microservices Architecture
+
+```mermaid
+flowchart TB
+    subgraph Core["🎯 Core Services"]
+        api[api-gateway]
+        voice[voice-switch]
+        smsc[smsc]
+        ussd[ussd-gateway]
+        billing[billing]
+        umh[unified-messaging]
     end
+
+    subgraph Extended["🔧 Extended Services"]
+        im[instant-messaging]
+        rcs[rcs-messaging]
+        vvc[voice-video-calling]
+        stir[stir-shaken-service]
+        user[user-service]
+        payment[payment-service]
+    end
+
+    subgraph AI["🤖 AI Services"]
+        aiops[aiops-engine]
+        mcp[mcp-gateway]
+        dify[dify-orchestrator]
+        pop[pop-controller]
+    end
+
+    subgraph Infrastructure2["🏗️ Infrastructure"]
+        gitops[gitops-controller]
+        hasura[hasura-bridge]
+        temporal[temporal-worker]
+        landing[landing-service]
+    end
+
+    subgraph SharedCrates["📦 Shared Crates"]
+        core2[brivas-core]
+        lumadb[brivas-lumadb]
+        proto[brivas-proto]
+        telemetry[brivas-telemetry]
+        temporal_sdk[brivas-temporal-sdk]
+        kdb_sdk[brivas-kdb-sdk]
+        stir_sdk[brivas-stir-shaken-sdk]
+    end
+
+    api --> core2
+    voice --> core2
+    smsc --> core2
+    ussd --> core2
+    billing --> core2
     
-    subgraph Storage["Storage"]
-        BLOCK --> QUEST["QuestDB<br/>fraud_alerts"]
-        ALERT --> QUEST
-        PASS --> CDR["QuestDB<br/>cdr"]
-    end
+    voice --> lumadb
+    smsc --> lumadb
+    billing --> lumadb
+    
+    voice --> temporal_sdk
+    billing --> temporal_sdk
+    
+    stir --> stir_sdk
 ```
 
 ---
@@ -233,51 +351,53 @@ flowchart LR
 ## Data Flow Architecture
 
 ```mermaid
-flowchart TB
-    subgraph Ingress["Ingress"]
-        HTTP["HTTP/REST"]
-        GRPC["gRPC"]
-        WS["WebSocket"]
-        SIP["SIP/RTP"]
+flowchart LR
+    subgraph Ingest["📥 Data Ingestion"]
+        CDR[Call Detail Records]
+        SMS_Events[SMS Events]
+        USSD_Events[USSD Sessions]
+        Billing_Events[Billing Events]
     end
 
-    subgraph Processing["Processing Layer"]
-        GW["API Gateway"]
-        SIG["SIP Signaling"]
+    subgraph Stream["🌊 Streaming"]
+        NATS3["NATS JetStream"]
+        Redpanda3["Redpanda"]
     end
 
-    subgraph Orchestration["Orchestration"]
-        TEMP["Temporal<br/>Workflows"]
+    subgraph Process["⚙️ Processing"]
+        RealTime["Real-time Analytics"]
+        Batch["Batch Processing"]
+        ML["ML Inference"]
     end
 
-    subgraph Storage["Storage Layer"]
-        direction LR
-        OLTP["LumaDB<br/>(OLTP)"]
-        TS["QuestDB<br/>(Time-Series)"]
-        OLAP["ClickHouse<br/>(OLAP)"]
-        STREAM["Redpanda<br/>(Streaming)"]
+    subgraph Store["💾 Storage"]
+        LumaDB3["LumaDB<br/>(OLTP)"]
+        QuestDB3["QuestDB<br/>(Time-Series)"]
+        ClickHouse3["ClickHouse<br/>(OLAP)"]
     end
 
-    subgraph Analytics["Analytics & BI"]
-        GRAF["Grafana"]
-        SUPER["Superset"]
+    subgraph Serve["📊 Serving"]
+        API2["REST API"]
+        GraphQL["GraphQL"]
+        Dashboard["Dashboards"]
     end
 
-    HTTP --> GW
-    GRPC --> GW
-    WS --> GW
-    SIP --> SIG
+    CDR --> NATS3
+    SMS_Events --> NATS3
+    USSD_Events --> NATS3
+    Billing_Events --> Redpanda3
 
-    GW --> TEMP
-    SIG --> TEMP
-    
-    TEMP --> OLTP
-    TEMP --> TS
-    OLTP --> STREAM
-    STREAM --> OLAP
-    
-    TS --> GRAF
-    OLAP --> SUPER
+    NATS3 --> RealTime
+    Redpanda3 --> Batch
+    RealTime --> ML
+
+    RealTime --> QuestDB3
+    Batch --> ClickHouse3
+    ML --> LumaDB3
+
+    QuestDB3 --> API2
+    ClickHouse3 --> GraphQL
+    LumaDB3 --> Dashboard
 ```
 
 ---
@@ -286,76 +406,99 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    subgraph K8s["Kubernetes Cluster"]
-        subgraph NS_Core["namespace: brivas-core"]
-            GW_POD["api-gateway<br/>replicas: 3"]
-            VS_POD["voice-switch<br/>replicas: 3"]
-            TW_POD["temporal-worker<br/>replicas: 5"]
-        end
-        
-        subgraph NS_Telecom["namespace: brivas-telecom"]
-            KAM_POD["kamailio<br/>replicas: 2"]
-            FS_POD["freeswitch<br/>replicas: 2"]
-            RTP_POD["rtpengine<br/>replicas: 2"]
-        end
-        
-        subgraph NS_Data["namespace: brivas-data"]
-            LUMA_SS["lumadb<br/>StatefulSet"]
-            QUEST_SS["questdb<br/>StatefulSet"]
-            CH_SS["clickhouse<br/>StatefulSet"]
-        end
-        
-        subgraph NS_Mesh["namespace: brivas-mesh"]
-            CONSUL_SS["consul<br/>StatefulSet"]
-            TEMP_SS["temporal<br/>StatefulSet"]
+    subgraph External["🌐 External"]
+        Internet["Internet"]
+        Carriers["Carriers"]
+        PSTN["PSTN"]
+    end
+
+    subgraph Edge["🔒 Edge Layer"]
+        XDP2["XDP/eBPF LB<br/>(100+ Gbps)"]
+        WAF["WAF/DDoS Protection"]
+    end
+
+    subgraph Compute["💻 Compute Layer"]
+        subgraph K8s["Kubernetes Cluster"]
+            Gateway["Gateway Pods"]
+            Voice2["Voice Pods"]
+            Messaging3["Messaging Pods"]
+            Analytics2["Analytics Pods"]
         end
     end
 
-    subgraph External["External"]
-        LB["Load Balancer"]
-        DNS["DNS"]
+    subgraph Data2["💾 Data Layer"]
+        LumaDB4[("LumaDB<br/>Primary")]
+        LumaDB_R[("LumaDB<br/>Replica")]
+        QuestDB4[("QuestDB")]
+        ClickHouse4[("ClickHouse")]
     end
 
-    LB --> GW_POD
-    DNS --> LB
+    subgraph Observability3["📊 Observability"]
+        Grafana3["Grafana"]
+        Prometheus3["Prometheus"]
+        Jaeger3["Jaeger"]
+    end
+
+    Internet --> WAF
+    Carriers --> XDP2
+    PSTN --> XDP2
+    
+    WAF --> XDP2
+    XDP2 --> Gateway
+    XDP2 --> Voice2
+    
+    Gateway --> Messaging3
+    Voice2 --> Analytics2
+    
+    Voice2 --> LumaDB4
+    Messaging3 --> LumaDB4
+    Analytics2 --> QuestDB4
+    Analytics2 --> ClickHouse4
+    
+    LumaDB4 --> LumaDB_R
+    
+    K8s --> Prometheus3
+    Prometheus3 --> Grafana3
+    K8s --> Jaeger3
 ```
 
 ---
 
-## Technology Stack Summary
+## Performance Specifications
 
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| **Edge** | XDP/eBPF | 100+ Gbps kernel-bypass load balancing |
-| **Gateway** | Rust/Axum | Unified API (REST, GraphQL, WebSocket) |
-| **Signaling** | Kamailio, OpenSIPS | SIP Class 4/5 switching |
-| **Media** | FreeSWITCH, RTPEngine | IVR, transcoding, WebRTC |
-| **Workflows** | Temporal | Durable workflow orchestration |
-| **Time-Series** | QuestDB | 11.4M rows/sec CDR analytics |
-| **OLAP** | ClickHouse | 100M+ rows/sec warehousing |
-| **OLTP** | LumaDB | Unified PostgreSQL/Redis/Kafka |
-| **Streaming** | Redpanda | Kafka-compatible, C++ native |
-| **Discovery** | Consul | Cross-cluster service mesh |
-| **Messaging** | NATS JetStream | Low-latency event bus |
+| Component | Metric | Target | Technology |
+|-----------|--------|--------|------------|
+| **API Gateway** | Requests/sec | 100K+ | Axum + Tokio |
+| **Voice Switch** | Calls/sec | 10K+ | Rust + XDP |
+| **SMSC** | Messages/sec | 100K+ | SMPP + DashMap |
+| **USSD** | Sessions | 100K+ | DashMap + LumaDB |
+| **Billing** | CDRs/sec | 1M+ | In-memory rating |
+| **Analytics** | Ingestion | 11.4M rows/sec | QuestDB |
+| **Load Balancer** | Throughput | 100+ Gbps | XDP/eBPF |
+| **Fraud Detection** | Latency | <1ms | ML ensemble |
 
 ---
 
-## Service Ports Reference
+## Port Reference
 
-| Service | Port | Protocol | Description |
-|---------|------|----------|-------------|
-| API Gateway | 8080 | HTTP | Unified API endpoint |
-| Voice Switch | 8095 | HTTP | Carrier/LCR management |
-| Temporal Worker | 8096 | HTTP | Workflow health |
-| Temporal Server | 7233 | gRPC | Workflow execution |
-| Temporal UI | 8088 | HTTP | Workflow monitoring |
-| QuestDB | 8812 | PostgreSQL | Analytics queries |
-| QuestDB | 9009 | ILP | High-speed ingestion |
-| ClickHouse | 8123 | HTTP | OLAP queries |
-| Consul | 8500 | HTTP | Service discovery |
-| NATS | 4222 | NATS | Messaging |
-| Redpanda | 19092 | Kafka | Streaming |
-| LumaDB | 5432 | PostgreSQL | Primary database |
-| Kamailio | 5060 | SIP | Class 4 signaling |
-| OpenSIPS | 5080 | SIP | Class 5 signaling |
-| RTPEngine | 22222 | Control | Media control |
+| Service | Port | Protocol |
+|---------|------|----------|
+| API Gateway | 8080 | HTTP/GraphQL |
+| Voice Switch | 8095 | HTTP/gRPC |
+| Kamailio | 5060 | SIP UDP/TCP |
+| OpenSIPS | 5080 | SIP UDP/TCP |
+| OpenSIPS WS | 5066/5067 | WebSocket |
+| RTPEngine | 22222 | UDP |
+| Coturn | 3478/5349 | STUN/TURN |
+| SMSC | 2775 | SMPP |
+| USSD | 8080 | HTTP |
+| LumaDB | 5432 | PostgreSQL |
+| QuestDB | 8812/9009 | PostgreSQL/ILP |
+| ClickHouse | 8123/9000 | HTTP/Native |
+| NATS | 4222 | NATS |
+| Temporal | 7233 | gRPC |
+| Temporal UI | 8088 | HTTP |
+| Grafana | 3000 | HTTP |
+| Prometheus | 9090 | HTTP |
+| Jaeger | 16686 | HTTP |
+| Homer | 9080 | HTTP |
