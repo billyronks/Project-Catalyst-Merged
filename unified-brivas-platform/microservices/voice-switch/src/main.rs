@@ -4,13 +4,17 @@
 //! - Carrier management and failover
 //! - Least Cost Routing (LCR) engine
 //! - QuestDB real-time analytics (11.4M rows/sec, sub-2ms latency)
+//! - ML-powered fraud detection (IRSF, Wangiri, velocity)
+//! - Circuit breaker pattern for carrier failover
 //! - WebRTC session management
 //! - STIR/SHAKEN verification
 
 mod analytics;
 mod carrier;
+mod circuit_breaker;
 mod config;
 mod error;
+mod fraud;
 mod handlers;
 mod kdb;
 mod lcr;
@@ -21,6 +25,7 @@ use axum::{
     routing::{delete, get, post, put},
     Router,
 };
+
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
